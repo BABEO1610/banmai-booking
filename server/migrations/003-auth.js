@@ -1,0 +1,2 @@
+export async function up(pgm) { pgm.createTable('auth_challenges', { id: { type: 'uuid', primaryKey: true }, user_id: { type: 'uuid', notNull: true, references: 'app.users(id)' }, purpose: { type: 'text', notNull: true }, code_hash: { type: 'text', notNull: true }, expires_at: { type: 'timestamptz', notNull: true }, attempts: { type: 'integer', notNull: true, default: 0 }, consumed_at: { type: 'timestamptz' } }, { schema: 'app' }) }
+export async function down(pgm) { pgm.dropTable('auth_challenges', { schema: 'app' }) }

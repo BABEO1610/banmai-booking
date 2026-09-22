@@ -1,0 +1,36 @@
+{
+  "name": "server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --watch-path=src --watch-path=.env src/index.js",
+    "start": "node src/index.js",
+    "db:check": "node scripts/check-db.js",
+    "db:diagnose": "node scripts/diagnose-db.js",
+    "db:migrate": "node scripts/migrate.js",
+    "db:seed:dev": "node scripts/seed-dev.js",
+    "mail:check": "node scripts/check-email.js",
+    "storage:migrate-images": "node scripts/migrate-images-to-supabase.js",
+    "auth:bootstrap-admin": "node scripts/bootstrap-admin.js",
+    "worker:dev": "node src/workers/index.js",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
+    "test:contract": "node --test tests/contract/*.test.js"
+  },
+  "dependencies": {
+    "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "express-session": "^1.18.2",
+    "googleapis": "^181.0.0",
+    "helmet": "^8.1.0",
+    "multer": "^2.4.0",
+    "node-pg-migrate": "^8.0.3",
+    "nodemailer": "^10.0.10",
+    "pg": "^8.16.3",
+    "zod": "^4.1.12"
+  }
+}

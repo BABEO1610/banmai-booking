@@ -1,0 +1,1 @@
+export const fakePaymentAdapter = { name: 'DEMO', configured: true, async createProof({ bookingCode, amountVnd }) { return { source: 'DEMO', transactionId: `demo-${bookingCode}`, reference: bookingCode, amountVnd, currency: 'VND', demo: true } } }

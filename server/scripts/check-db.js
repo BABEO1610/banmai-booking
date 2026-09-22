@@ -1,0 +1,3 @@
+import 'dotenv/config'
+import { config } from '../src/config/env.js'
+if (config.dataMode !== 'postgres') { console.error('DB chưa được cấu hình: DATA_MODE=mock đang dùng local demo store.'); process.exitCode = 2 } else { const { createPool } = await import('../src/db/pool.js'); const pool = createPool(); try { const result = await pool.query("select current_database() as database, version() as version, exists(select 1 from pg_extension where extname = 'btree_gist') as btree_gist, exists(select 1 from pg_namespace where nspname = 'app') as app_schema, to_regclass('app.demo_state') is not null as demo_state_table"); console.log(JSON.stringify({ status: 'ok', ...result.rows[0] }, null, 2)) } finally { await pool.end() } }

@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+.next/
+out/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Local data
+.data/
+server/.data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test results / generated reports
+/test-results/
+/test-results-motion-final/
+/playwright-report/
+
+# AI / local agent files
+/.agents/
+/speckit/
+/specs/
+/docs/
+plan3.md
+plan4.md
+plan_admin.md
+admin_features.md
+BRD_Booking_Studio_Chup_Anh_Cap_Nhat_Theo_Phan_Hoi_Studio.docx
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,1 @@
+export const fakeSmsAdapter = { name: 'FAKE_SMS', configured: true, async send(message) { if (process.env.FAKE_SMS_FAILURE === '1') throw new Error('Fake SMS failure injected'); return { accepted: true, provider: 'FAKE_SMS', messageId: `sms-${Date.now()}`, preview: message } } }

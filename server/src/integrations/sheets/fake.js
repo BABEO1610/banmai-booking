@@ -1,0 +1,2 @@
+const rows = new Map()
+export const fakeSheetsAdapter = { name: 'FAKE_SHEETS', configured: true, async upsert(row) { const key = `${row.bookingId || row.bookingCode}`; const previous = rows.get(key); if (!previous || Number(row.version) >= Number(previous.version)) rows.set(key, { ...row }); return { accepted: true, provider: 'FAKE_SHEETS', row: rows.get(key) } }, snapshot: () => [...rows.values()] }

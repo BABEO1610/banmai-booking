@@ -1,0 +1,2 @@
+export async function up(pgm) { pgm.createTable('delivery_attempts', { id: { type: 'uuid', primaryKey: true }, outbox_id: { type: 'uuid', notNull: true }, target: { type: 'text', notNull: true }, status: { type: 'text', notNull: true }, attempts: { type: 'integer', notNull: true, default: 0 }, last_error: { type: 'text' }, updated_at: { type: 'timestamptz', default: pgm.func('now()') } }, { schema: 'app' }) }
+export async function down(pgm) { pgm.dropTable('delivery_attempts', { schema: 'app' }) }

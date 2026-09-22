@@ -1,0 +1,16 @@
+.location-picker { display: grid; gap: 14px; min-width: 0; }
+.location-search-row { display: flex; gap: 10px; }
+.location-search-row input { flex: 1; min-width: 0; border: 1px solid #decdd6; border-radius: 12px; padding: 12px; font: inherit; }
+.location-search-row button { flex-shrink: 0; }
+.location-hint, .location-attribution { font-size: 13px; line-height: 1.6; color: #625560; margin: 0; }
+.location-results { list-style: none; margin: 0; padding: 0; border: 1px solid #decdd6; border-radius: 14px; overflow: hidden; }
+.location-results li + li { border-top: 1px solid #eadfe5; }
+.location-results button { display: grid; gap: 5px; width: 100%; text-align: left; background: white; border: 0; padding: 14px; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.location-results button:hover { background: #faf2f7; }
+.location-results span { font-size: 13px; line-height: 1.5; color: #625560; }
+.location-picker button:focus-visible, .location-picker input:focus-visible { outline: 3px solid #9f3065; outline-offset: 3px; }
+.booking-location-map { width: 100%; height: 320px; border-radius: 14px; border: 1px solid #decdd6; z-index: 0; }
+.booking-map-pin span { display: block; width: 25px; height: 25px; border-radius: 50% 50% 50% 0; background: #a62f69; border: 3px solid white; box-shadow: 0 2px 6px #555; transform: rotate(-45deg); }
+.location-selected { display: grid; gap: 10px; padding: 16px; border-radius: 14px; background: #faf2f7; overflow-wrap: anywhere; }
+.location-selected small { color: #625560; }
+@media (max-width: 480px) { .location-search-row { flex-direction: column; } .booking-location-map { height: 280px; } }
