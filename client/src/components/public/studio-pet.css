@@ -1,0 +1,23 @@
+/* studio-pet.css – wrapper for the pixel-art mascot */
+.studio-pet{position:fixed;left:0;bottom:8px;width:0;height:0;z-index:35;pointer-events:none}
+.studio-pet-stage{position:absolute;left:0;bottom:0;width:84px;height:128px;pointer-events:none;will-change:transform}
+.studio-pet-figure{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;background:none;cursor:pointer;pointer-events:auto;display:flex;align-items:flex-end;justify-content:center}
+/* drag handle – covers shirt/body area */
+.studio-pet-shirt{position:absolute;left:20%;top:28%;width:60%;height:36%;border:0;border-radius:44% 42% 38% 40%;background:transparent;cursor:grab;touch-action:none;pointer-events:auto}
+.studio-pet-shirt:hover{background:rgba(155,49,92,.08)}
+.studio-pet-stage.is-dragging .studio-pet-shirt{cursor:grabbing}
+/* speech bubble – brand colours */
+.studio-pet-bubble{position:absolute;left:0;bottom:124px;width:160px;padding:8px 11px;border:2px solid #9b315c;border-radius:14px 14px 14px 3px;background:#fffdfb;color:#35272e;box-shadow:3px 4px 0 rgba(155,49,92,.16);font:700 12px/1.35 'Be Vietnam Pro',sans-serif;text-align:center;white-space:normal;transform:rotate(-3deg);pointer-events:none}
+/* dismiss button */
+.studio-pet-dismiss{position:absolute;right:-5px;top:4px;width:23px;height:23px;border:1px solid #c9a9b8;border-radius:50%;background:#fff;color:#9b315c;font:18px/21px Arial,sans-serif;cursor:pointer;pointer-events:auto;opacity:.88}
+/* focus rings */
+.studio-pet-figure:focus-visible,.studio-pet-shirt:focus-visible,.studio-pet-dismiss:focus-visible{outline:3px solid #9b315c;outline-offset:3px}
+/* mobile */
+@media(max-width:600px){
+  .studio-pet{bottom:4px}
+  .studio-pet-stage{width:63px;height:96px}
+  .studio-pet-bubble{bottom:92px;width:140px;font-size:11px}
+  .studio-pet-dismiss{width:21px;height:21px;right:-6px;top:2px}
+}
+@media(prefers-reduced-motion:reduce){.studio-pet-stage{will-change:auto}}
+

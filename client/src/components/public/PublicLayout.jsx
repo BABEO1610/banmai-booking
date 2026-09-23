@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext.jsx'
 import StudioIcon from './StudioIcon.jsx'
 import StudioContact from './StudioContact.jsx'
+import StudioPet from './StudioPet.jsx'
 import { ROLE_HOME } from '../../constants/auth.js'
 
 export default function PublicLayout({ children }) {
@@ -52,6 +53,7 @@ export default function PublicLayout({ children }) {
     </div></header>
     {error && <p className="form-error layout-error" role="alert">{error}</p>}
     <div id="main-content" tabIndex="-1">{children}</div>
+    {['/', '/packages', '/portfolio', '/policy'].includes(pathname) && <StudioPet />}
     <footer className="app-footer"><StudioContact /><div className="footer-top"><Link className="app-brand" to="/">ban mai<span>.</span></Link><p>Những khung hình có bạn.<br />Những câu chuyện còn ở lại.</p><Link className="under-link" to="/book">Hẹn một buổi chụp ↗</Link></div><div className="footer-bottom"><span>© {new Date().getFullYear()} Ban Mai Studio</span><span>Bản demo · Hình ảnh minh họa · Email, SMS, thanh toán và Sheets dùng mock.</span></div></footer>
   </div>
 }

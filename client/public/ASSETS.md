@@ -13,6 +13,7 @@ Ban Mai là tên minh họa trong prototype, chưa xác nhận nhận diện Stu
 | images/color-street.jpg | https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1000&q=82 |
 | images/together-close.jpg | https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=1000&q=82 |
 | images/together-ceremony.jpg | https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1000&q=82 |
+| images/studio-pet-owner.webp | Minh họa linh vật được tạo bằng công cụ imagegen từ ảnh tham chiếu do Studio cung cấp; không đăng ảnh gốc lên website. |
 
 License: [Unsplash](https://unsplash.com/license), kiểm tra lại 2026-09-17. Thay bằng ảnh Studio có quyền sử dụng trước khi coi prototype là portfolio thật. Bộ sưu tập demo dùng 3 ảnh khác nhau/concept, không giả các crop của cùng một ảnh thành nhiều sản phẩm.
 

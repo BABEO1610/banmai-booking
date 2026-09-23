@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+server/.data
+test-results
+playwright-report
+*.log
+docs
+specs
+speckit
+.agents
