@@ -1,5 +1,5 @@
 // Public social links only; never put access tokens or server credentials here.
-const hosts = { zalo: ['zalo.me'], facebook: ['facebook.com', 'www.facebook.com', 'm.facebook.com', 'fb.me'] }
+const hosts = { zalo: ['zalo.me'], facebook: ['facebook.com', 'www.facebook.com', 'm.facebook.com', 'fb.me'], tiktok: ['tiktok.com', 'www.tiktok.com', 'm.tiktok.com'] }
 export function socialUrl(channel, value) {
   if (typeof value !== 'string' || !hosts[channel]) return null
   try {

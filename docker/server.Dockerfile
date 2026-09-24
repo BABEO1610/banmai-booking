@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 ENV NODE_ENV=production
 WORKDIR /app
@@ -10,7 +10,11 @@ COPY server/package.json server/package.json
 COPY shared/package.json shared/package.json
 RUN npm ci --omit=dev --workspace server --include-workspace-root=false
 
-COPY server ./server
+COPY server/src ./server/src
+COPY server/certs ./server/certs
+COPY server/migrations ./server/migrations
+COPY server/migration.config.js ./server/migration.config.js
+COPY server/scripts ./server/scripts
 COPY shared ./shared
 
 RUN mkdir -p /app/server/.data/media \

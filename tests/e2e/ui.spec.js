@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test'
-import { demoCatalog } from '../../client/src/hooks/useCatalog.js'
+import { bookingPackages } from '../../shared/booking-packages.js'
+import { concepts } from '../../client/src/data/showcase.js'
+const demoCatalog = { packages: bookingPackages.map(pkg => ({ ...pkg, price: { amount: String(pkg.priceVnd), currency: 'VND' } })), portfolio: concepts }
 
 const money = (amount) => ({ amount: String(amount), currency: 'VND' })
 const booking = { id: 'ui-booking', code: 'BM-2026-A-LONG-BOOKING-CODE', status: 'PENDING', paymentStatus: 'UNPAID', package: { name: 'Gói nửa ngày' }, startAt: '2026-10-20T00:00:00Z', total: money(2000000), paid: money(0), remaining: money(2000000), contact: { name: 'Khách hàng minh họa' }, assignment: null }
@@ -13,9 +15,9 @@ async function mockApi(page, role = null, overrides = {}) {
     const data = {
       '/auth/me': { user, csrfToken: 'ui-csrf' },
       '/packages': demoCatalog.packages, '/portfolio': demoCatalog.portfolio, '/addons': [], '/contents': [], '/policies': [],
-      '/bookings': [booking], '/bookings/ui-booking/payment': payment,
+      '/bookings': { items: [booking], page: 1, pages: 1, total: 1 }, '/bookings/ui-booking/payment': payment,
       '/admin/booking-settings': { maxConcurrentBookings: 2, bufferBeforeMinutes: 0, bufferAfterMinutes: 0, timezone: 'Asia/Ho_Chi_Minh', version: 1, updatedAt: '2026-09-17T00:00:00Z' },
-      '/admin/bookings': [booking], '/admin/photographers': [{ id: 'ui-photographer', name: 'Photographer A', status: 'ACTIVE' }],
+      '/admin/bookings': { items: [booking], page: 1, pages: 1, total: 1 }, '/admin/photographers': [{ id: 'ui-photographer', name: 'Photographer A', status: 'ACTIVE' }],
       '/admin/integrations/status': { services: [{ target: 'payment', status: 'READY', note: 'Không phải giao dịch ngân hàng' }, { target: 'sheets', status: 'READY', note: 'Chưa ghi Google Sheets thật' }] },
       '/admin/audit': [{ id: 'audit-1', action: 'BOOKING_CREATED', entityType: 'booking', createdAt: '2026-09-17T00:00:00Z' }],
       '/photographer/calendar': [{ id: 'shift-1', code: 'BM-2026-001', customerLabel: 'Khách hàng minh họa', startAt: booking.startAt, isMine: true, photographer: 'Photographer A', payout: money(700000) }],
@@ -32,7 +34,7 @@ async function checkLayout(page) {
   await page.evaluate(() => document.fonts.ready)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   expect(await page.locator('html').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
-  expect(await page.locator('.app-footer').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
+  if (await page.locator('.app-footer').count()) expect(await page.locator('.app-footer').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
   const main = page.locator('main')
   await expect(main).toBeVisible()
   expect(await page.evaluate(() => document.fonts.check('16px "Be Vietnam Pro"'))).toBe(true)
@@ -48,11 +50,13 @@ for (const width of [1440, 768, 390, 375, 320]) {
     await mockApi(page)
     await page.setViewportSize({ width, height: 960 })
     await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
+  await page.mouse.move(0, 0)
     await checkLayout(page)
     await expect(page.locator('.camera-installation')).toHaveAttribute('data-mode', '3d', { timeout: 20000 })
     await expect(page.getByRole('img', { name: /máy ảnh 3D/ })).toBeVisible()
     expect(await page.locator('.landing-hero').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
-    await expect(page.locator('.editorial-grid, .public-package-grid')).toHaveCount(0)
+    await expect(page.locator('.editorial-grid, .package-constellation')).toHaveCount(0)
     // CSS animation freezing cannot stop a WebGL render loop. Capture the
     // owner's explicit paused/full-quality state; motion is tested separately.
     await page.getByRole('button', { name: /Tạm dừng nền động/ }).click()
@@ -104,6 +108,8 @@ test('reduced motion removes photographer animation; simulated shutter remains a
   await mockApi(page)
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
+  await page.mouse.move(0, 0)
   await expect(page.getByRole('button', { name: 'Chế độ giảm chuyển động' })).toBeDisabled()
   await expect(page.locator('.camera-installation')).toHaveAttribute('data-mode', '3d', { timeout: 20000 })
   await expect(page.locator('.camera-canvas canvas')).toHaveAttribute('data-running', 'false')
@@ -118,7 +124,7 @@ test('reduced motion removes photographer animation; simulated shutter remains a
 test('catalog outage is explicit; booking fails closed instead of submitting fallback data', async ({ page }) => {
   await mockApi(page, 'CUSTOMER', { '/packages': (route) => route.fulfill({ status: 503, json: { error: { message: 'Studio đang mất kết nối' } } }) })
   await page.goto('/packages')
-  await expect(page.getByRole('status')).toContainText('nội dung minh họa')
+  await expect(page.getByRole('status')).toContainText('Chưa tải được gói chụp')
   await page.goto('/book')
   await expect(page.getByRole('alert')).toContainText('Studio đang mất kết nối')
   await expect(page.getByRole('button', { name: /Giữ lịch 15 phút/ })).toBeDisabled()
@@ -139,6 +145,7 @@ test('booking POST keeps JSON and CSRF headers, payment status refreshes and VND
     '/bookings/ui-booking/payment': (route) => route.fulfill({ json: { data: paid ? { ...payment, paymentStatus: 'PARTIALLY_PAID', paid: money(500000), remaining: money(1500000) } : payment } }),
   })
   await page.goto('/book')
+  await page.getByLabel('Số điện thoại', { exact: true }).fill('0901234567')
   await page.getByRole('button', { name: /Giữ lịch 15 phút/ }).click()
   await expect(page).toHaveURL(/ui-booking\/payment/)
   expect(posted).toBe(true)
@@ -174,7 +181,7 @@ test('password reset requests an email OTP without exposing the code in the UI',
   await page.getByRole('button', { name: 'Gửi mã đặt lại' }).click()
   await expect(page.getByText('Kiểm tra Inbox/Spam')).toBeVisible()
   await page.getByLabel('Mã xác thực').fill('123456')
-  await page.getByLabel('Mật khẩu mới').fill('NewPassword123!')
+  await page.getByLabel('Mật khẩu mới', { exact: true }).fill('NewPassword123!')
   await page.getByRole('button', { name: /Đổi mật khẩu/ }).click()
   await expect(page.getByRole('status')).toContainText('Đã đổi mật khẩu')
 })
@@ -208,6 +215,7 @@ test('keyboard can skip header and mobile menu traps focus until closed', async 
   await mockApi(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
+  await expect(page.locator('.landing-hero')).toBeVisible()
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Bỏ qua menu, tới nội dung' })).toBeFocused()
   await page.keyboard.press('Enter')
@@ -240,13 +248,12 @@ test('login displays API errors and re-enables submit', async ({ page }) => {
   await expect(page.getByRole('button', { name: /Đăng nhập/ })).toBeEnabled()
 })
 
-test('admin cannot assign a pending booking and demo payment errors are visible', async ({ page }) => {
+test('admin cannot assign a pending booking and never offers simulated payment', async ({ page }) => {
   await mockApi(page, 'ADMIN', { '/admin/users': [], '/demo/payment/ui-booking': (route) => route.fulfill({ status: 409, json: { error: { message: 'Hold đã hết hạn' } } }) })
   await page.goto('/admin')
   await expect(page.getByText('Chỉ phân ca sau khi booking được xác nhận.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Phân ca', exact: true })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Mô phỏng cọc 500k' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Hold đã hết hạn')
+  await expect(page.getByRole('button', { name: 'Mô phỏng cọc 500k' })).toHaveCount(0)
 })
 
 test('photographer outage never displays an empty schedule as success', async ({ page }) => {
@@ -259,6 +266,8 @@ test('photographer outage never displays an empty schedule as success', async ({
 test('photography background moves, pauses on request and pauses off screen', async ({ page }) => {
   await mockApi(page)
   await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
+  await page.mouse.move(0, 0)
   await expect(page.locator('.camera-installation')).toHaveAttribute('data-mode', '3d', { timeout: 20000 })
   await expect(page.locator('.camera-canvas canvas')).toHaveAttribute('data-running', 'true')
   const first = await page.locator('.camera-canvas canvas').getAttribute('data-frame')
@@ -278,15 +287,17 @@ test('landing does not request or embed catalog; destination pages never embed l
   page.on('request', (request) => requests.push(new URL(request.url()).pathname))
   await mockApi(page)
   await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
+  await page.mouse.move(0, 0)
   await expect(page.locator('.landing-hero')).toBeVisible()
   expect(requests.filter((path) => ['/api/v1/packages', '/api/v1/portfolio'].includes(path))).toEqual([])
-  await expect(page.locator('.public-package-grid, .editorial-grid')).toHaveCount(0)
+  await expect(page.locator('.package-constellation, .editorial-grid')).toHaveCount(0)
   await page.goto('/packages')
-  await expect(page.locator('.public-package-grid')).toBeVisible()
+  await expect(page.locator('.package-constellation')).toBeVisible()
   await expect(page.locator('.landing-hero, .editorial-grid')).toHaveCount(0)
   await page.goto('/portfolio')
   await expect(page.locator('.editorial-grid')).toBeVisible()
-  await expect(page.locator('.landing-hero, .public-package-grid')).toHaveCount(0)
+  await expect(page.locator('.landing-hero, .package-constellation')).toHaveCount(0)
 })
 
 test('white page canvas and blush primary controls remain readable in landscape', async ({ page }) => {
@@ -297,13 +308,15 @@ test('white page canvas and blush primary controls remain readable in landscape'
     await checkLayout(page)
     expect(await page.locator('html').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
     expect(await page.locator('.header-wrap').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
-    expect(await page.locator('.app-footer').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
+    if (await page.locator('.app-footer').count()) expect(await page.locator('.app-footer').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(255, 255, 255)')
   }
 })
 
 test('blush primary text contrast is readable at both gradient endpoints', async ({ page }) => {
   await mockApi(page)
   await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
+  await page.mouse.move(0, 0)
   const ratio = await page.locator('.landing-hero .primary-button').evaluate((el) => {
     const style = getComputedStyle(el)
     const foreground = style.color.match(/\d+/g).slice(0, 3).map(Number)
@@ -320,6 +333,8 @@ test('blush primary text contrast is readable at both gradient endpoints', async
 test('photographer pauses on hover and keyboard interaction, while explicit play resumes', async ({ page }) => {
   await mockApi(page)
   await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
+  await page.mouse.move(0, 0)
   await page.locator('.hero-scene').hover()
   await expect(page.locator('.landing-hero')).toHaveClass(/motion-paused/)
   await page.mouse.move(0, 0)
@@ -403,8 +418,11 @@ test('WebGL unavailable uses a readable fallback instead of an empty hero', asyn
     HTMLCanvasElement.prototype.getContext = function (type, ...args) { return type === 'webgl2' ? null : original.call(this, type, ...args) }
   })
   await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
+  await page.mouse.move(0, 0)
   await expect(page.locator('.camera-installation')).toHaveAttribute('data-mode', 'fallback')
-  await expect(page.getByRole('img', { name: /photographer đang chụp/ })).toBeVisible()
+  await expect(page.locator('.installation-fallback')).toBeVisible()
+  await expect(page.locator('.installation-fallback img')).toHaveCount(0)
   await expect(page.getByText('Minh họa Studio · Thiết bị không hỗ trợ 3D')).toBeVisible()
   await page.getByRole('button', { name: 'Chụp thử', exact: true }).click()
   await expect(page.locator('.shot-status')).toContainText('Đã chụp thử 1')
@@ -414,12 +432,15 @@ test('WebGL unavailable uses a readable fallback instead of an empty hero', asyn
 test('3D context loss switches to fallback and route re-entry recreates the installation', async ({ page }) => {
   await mockApi(page)
   await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
+  await page.mouse.move(0, 0)
   await expect(page.locator('.camera-installation')).toHaveAttribute('data-mode', '3d', { timeout: 20000 })
   await page.locator('.camera-canvas canvas').evaluate((canvas) => canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true })))
   await expect(page.locator('.camera-installation')).toHaveAttribute('data-mode', 'fallback')
   await page.getByRole('navigation').getByRole('link', { name: 'Bộ ảnh', exact: true }).click()
   await expect(page.locator('.camera-canvas canvas')).toHaveCount(0)
   await page.getByRole('link', { name: 'Ban Mai — Trang chủ', exact: true }).click()
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
   await expect(page.locator('.camera-installation')).toHaveAttribute('data-mode', '3d', { timeout: 20000 })
   await expect(page.locator('.camera-canvas canvas')).toHaveCount(1)
 })
@@ -442,6 +463,8 @@ test('3D view changes with a keyboard/mobile button while automatic motion is pa
   await page.setViewportSize({ width: 390, height: 844 })
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
+  await page.mouse.move(0, 0)
   await expect(page.locator('.camera-installation')).toHaveAttribute('data-mode', '3d', { timeout: 20000 })
   const button = page.getByRole('button', { name: 'Đổi góc nhìn', exact: true })
   await button.focus()

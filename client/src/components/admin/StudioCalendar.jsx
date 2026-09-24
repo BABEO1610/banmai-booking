@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '../../services/api.js'
 import { statusLabel } from '../../utils/statusLabels.js'
 import './StudioCalendar.css'
@@ -22,12 +22,26 @@ export default function StudioCalendar({ csrf }) {
   const [message, setMessage] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ start: `${today}T07:00`, end: `${today}T17:00`, reason: '' })
+  const generation = useRef(0)
   const refresh = async () => {
-    const [items, rests] = await Promise.all([api.adminBookings(), api.blockedSchedules()])
-    setBookings(items.filter(item => ['PENDING', 'CONFIRMED', 'COMPLETED'].includes(item.status)))
-    setBlocks(rests)
+    const id = ++generation.current
+    setLoading(true); setError('')
+    const firstDay = `${month}-01`
+    const from = `${shiftDay(firstDay, -7)}T00:00:00+07:00`
+    const to = `${shiftDay(firstDay, 38)}T23:59:59+07:00`
+    try {
+      const [firstPage, rests] = await Promise.all([api.adminBookings({ from, to, overlap: 'true', pageSize: 100 }), api.blockedSchedules()])
+      const items = [...firstPage.items]
+      for (let page = 2; page <= firstPage.pages; page++) {
+        if (id !== generation.current) return
+        const next = await api.adminBookings({ from, to, overlap: 'true', pageSize: 100, page })
+        items.push(...next.items)
+      }
+      if (id === generation.current) { setBookings(items.filter(item => ['PENDING', 'CONFIRMED', 'COMPLETED'].includes(item.status))); setBlocks(rests) }
+    } catch (error) { if (id === generation.current) setError(error.message) }
+    finally { if (id === generation.current) setLoading(false) }
   }
-  useEffect(() => { refresh().catch(err => setError(err.message)).finally(() => setLoading(false)) }, [])
+  useEffect(() => { refresh(); return () => { generation.current++ } }, [month])
   const choose = day => { setSelected(day); setMonth(day.slice(0, 7)); setShowForm(false); setMessage(''); setError(''); setForm({ start: `${day}T07:00`, end: `${day}T17:00`, reason: '' }) }
   const moveMonth = delta => { const d = new Date(`${month}-01T00:00:00Z`); d.setUTCMonth(d.getUTCMonth() + delta); choose(dateKey(d)) }
   const first = new Date(`${month}-01T00:00:00Z`)

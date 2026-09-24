@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import express from 'express'
@@ -22,11 +23,11 @@ test('Supabase mode uploads to a public bucket and returns a public URL', async 
   Object.assign(config, { imageStorage: 'supabase', supabaseUrl: 'https://demo.supabase.co', supabaseServiceRoleKey: 'service-role', storageBucket: 'studio-media' })
   globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, status: 200 } }
   try {
-    const result = await uploadPublicImage({ bytes: Buffer.from([137,80,78,71,13,10,26,10]), prefix: 'packages', localDir: 'unused' })
+    const result = await uploadPublicImage({ bytes: await sharp({ create: { width: 10, height: 10, channels: 3, background: '#fff' } }).png().toBuffer(), prefix: 'packages', localDir: 'unused' })
     assert.match(result.image, /^https:\/\/demo\.supabase\.co\/storage\/v1\/object\/public\/studio-media\/packages\//)
     assert.equal(calls.length, 3)
     assert.equal(calls[2].options.headers.authorization, 'Bearer service-role')
-    assert.equal(calls[2].options.headers['content-type'], 'image/png')
+    assert.equal(calls[2].options.headers['content-type'], 'image/webp')
   } finally { Object.assign(config, previous); globalThis.fetch = previous.fetch }
 })
 
@@ -40,7 +41,7 @@ test('package images require admin and CSRF, persist image bytes, and reject inv
   const server = app.listen(0, '127.0.0.1')
   await new Promise(resolve => server.once('listening', resolve))
   t.after(async () => { await new Promise(resolve => server.close(resolve)); await fs.rm(dir, { recursive: true, force: true }) })
-  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64')
+  const png = await sharp({ create: { width: 10, height: 10, channels: 3, background: '#fff' } }).png().toBuffer()
   const send = (bytes, role = 'ADMIN', csrf = 'test') => {
     const body = new FormData(); body.append('image', new Blob([bytes], { type: 'image/png' }), 'photo.html')
     return fetch(`http://127.0.0.1:${server.address().port}/image`, { method: 'POST', headers: { 'x-test-role': role, 'x-csrf-token': csrf }, body })
@@ -53,8 +54,8 @@ test('package images require admin and CSRF, persist image bytes, and reject inv
   const response = await send(png)
   assert.equal(response.status, 201)
   const { data } = await response.json()
-  assert.match(data.image, /^\/media\/packages-[\w-]+\.png$/)
-  assert.deepEqual(await fs.readFile(path.join(dir, path.basename(data.image))), png)
+  assert.match(data.image, /^\/media\/packages-[\w-]+\.webp$/)
+  assert.equal((await sharp(await fs.readFile(path.join(dir, path.basename(data.image)))).metadata()).format, 'webp')
   assert.equal((await fs.readdir(dir)).length, 1)
   config.imageStorage = previousStorage
 })

@@ -1,3 +1,4 @@
+import { config } from '../config/env.js'
 import { fakeSheetsAdapter } from '../integrations/sheets/fake.js'
 import { googleSheetsAdapter } from '../integrations/sheets/google.js'
 import { fakeSmsAdapter } from '../integrations/sms/fake.js'
@@ -7,6 +8,9 @@ export async function deliverOutbox(events, { rowForBooking } = {}) {
   for (const event of events.filter((item) => ['PENDING', 'RETRY'].includes(item.status) && (!item.availableAt || new Date(item.availableAt) <= new Date()))) {
     try {
       const payload = event.channel === 'sheets' && rowForBooking ? await rowForBooking(event.bookingId) : event.payload
+      const mockAllowed = config.nodeEnv !== 'production'
+      if (event.channel === 'sheets' && !googleSheetsAdapter.configured && !(mockAllowed && config.sheetsMode === 'mock')) throw new Error('Google Sheets chưa sẵn sàng; tác vụ chưa được gửi')
+      if (event.channel !== 'sheets' && !(mockAllowed && config.smsMode === 'mock')) throw new Error('Kênh gửi chưa được cấu hình')
       const adapter = event.channel === 'sheets' ? (googleSheetsAdapter.configured ? googleSheetsAdapter : fakeSheetsAdapter) : fakeSmsAdapter
       const result = event.channel === 'sheets' ? await adapter.upsert(payload) : await adapter.send(payload)
       event.status = 'DELIVERED'

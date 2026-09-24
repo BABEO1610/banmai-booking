@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import PublicLayout from '../../components/public/PublicLayout.jsx'
 import { LoadingState } from '../../components/Feedback.jsx'
@@ -13,24 +13,40 @@ export default function PaymentPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [qrFailed, setQrFailed] = useState(false)
   const [clock, setClock] = useState(Date.now())
-  useEffect(() => { const timer = setInterval(() => setClock(Date.now()), 1000); return () => clearInterval(timer) }, [])
+  const requestRef = useRef(null)
   useEffect(() => {
-    let active = true
+    let active = true, timer, inFlight = false, finished = false, controller
     setData(null); setError(''); setQrFailed(false)
-    const refresh = () => {
-      if (document.hidden) return
-      api.payment(id).then((value) => { if (active) { setData(value); setError('') } }).catch((err) => { if (active) setError(err.message) })
+    const refresh = async () => {
+      if (inFlight || document.hidden || !active) return
+      inFlight = true; setRefreshing(true); clearTimeout(timer)
+      controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 15000)
+      try {
+        const value = await api.payment(id, { signal: controller.signal })
+        if (!active) return
+        setData(value); setError('')
+        finished = !value.pendingReview && (Number(value.remaining.amount) === 0 || ['EXPIRED', 'CANCELLED'].includes(value.status))
+      } catch (err) { if (active) setError(err.name === 'AbortError' ? 'Kết nối chậm. Vui lòng thử lại.' : err.message) }
+      finally {
+        clearTimeout(timeout); inFlight = false
+        if (active) { setRefreshing(false); if (!finished) timer = setTimeout(refresh, 10000) }
+      }
     }
+    const resume = () => { if (!finished) refresh() }
+    requestRef.current = refresh
     refresh()
-    const timer = setInterval(refresh, 10000)
-    document.addEventListener('visibilitychange', refresh)
-    window.addEventListener('focus', refresh)
-    return () => { active = false; clearInterval(timer); document.removeEventListener('visibilitychange', refresh); window.removeEventListener('focus', refresh) }
+    document.addEventListener('visibilitychange', resume)
+    window.addEventListener('focus', resume)
+    return () => { active = false; clearTimeout(timer); controller?.abort(); requestRef.current = null; document.removeEventListener('visibilitychange', resume); window.removeEventListener('focus', resume) }
   }, [id])
-  const refresh = async () => {
-    setRefreshing(true)
-    try { setData(await api.payment(id)); setError('') } catch (err) { setError(err.message) } finally { setRefreshing(false) }
-  }
+  const countingDown = data?.status === 'PENDING' && Number(data?.paid?.amount) === 0 && Date.parse(data?.holdExpiresAt) > clock
+  useEffect(() => {
+    if (!countingDown) return
+    const timer = setInterval(() => { if (!document.hidden) setClock(Date.now()) }, 1000)
+    return () => clearInterval(timer)
+  }, [countingDown])
+  const refresh = () => requestRef.current?.()
   useEffect(() => { setQrFailed(false) }, [data?.qrUrl])
   const balancePayment = data?.request.purpose === 'BALANCE'
   const fullyPaid = data && Number(data.remaining.amount) === 0

@@ -1,9 +1,10 @@
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY client/package.json client/package.json
 COPY server/package.json server/package.json
+COPY shared/package.json shared/package.json
 RUN npm ci --workspace client --include-workspace-root=false
 
 COPY shared ./shared

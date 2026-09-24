@@ -7,7 +7,7 @@ test('studio month calendar selects shifts and saves a full-day rest in Vietnam 
     const p = new URL(route.request().url()).pathname
     if (p.endsWith('/blocked-schedules') && route.request().method()==='POST') { submitted = route.request().postDataJSON(); blocks=[{id:'rest',...submitted}] }
     if (p.endsWith('/blocked-schedules/rest') && route.request().method()==='DELETE') blocks=[]
-    const data = p.endsWith('/auth/me') ? {user:{id:'a',role:'ADMIN',name:'Admin',emailVerified:true},csrfToken:'test'} : p.endsWith('/bookings') ? [booking] : p.endsWith('/blocked-schedules') ? blocks : p.endsWith('/booking-settings') ? {maxConcurrentBookings:2} : p.endsWith('/integrations/status') ? {services:[],outbox:[]} : p.endsWith('/catalog') ? {packages:[],addons:[],portfolio:[]} : []
+    const data = p.endsWith('/auth/me') ? {user:{id:'a',role:'ADMIN',name:'Admin',emailVerified:true},csrfToken:'test'} : p.endsWith('/bookings') ? {items:[booking],page:1,pages:1,total:1} : p.endsWith('/blocked-schedules') ? blocks : p.endsWith('/booking-settings') ? {maxConcurrentBookings:2} : p.endsWith('/integrations/status') ? {services:[],outbox:[]} : p.endsWith('/catalog') ? {packages:[],addons:[],portfolio:[]} : []
     await route.fulfill({json:{data}})
   })
   await page.goto('/admin')

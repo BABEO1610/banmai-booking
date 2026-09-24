@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import PhotographerScene from './PhotographerScene.jsx'
 import StudioIcon from './StudioIcon.jsx'
 
 // GPU code loads only on landing. No model/texture CDN, tracker or webcam access.
@@ -63,8 +62,8 @@ export default function CameraInstallation({ paused, reduced, shot }) {
       let time = 0, previous = 0, frame = 0, angle = 0
       const pointer = { x: 0, y: 0 }
       const pose = () => {
-        installation.rotation.set(.12 + Math.sin(time * .45) * .045 + pointer.y * .1, .43 + Math.sin(time * .32) * .22 + pointer.x * .17 + [0, -1.3, 2.7][angle], -.065 + Math.sin(time * .4) * .025)
-        installation.position.y = .18 + Math.sin(time * .65) * .065
+        installation.rotation.set(.12 + Math.sin(time * .55) * .045 + pointer.y * .1, .43 + Math.sin(time * .4) * .22 + pointer.x * .17 + [0, -1.3, 2.7][angle], -.065 + Math.sin(time * .5) * .025)
+        installation.position.y = .18 + Math.sin(time * .82) * .065
       }
       const draw = () => {
         if (disposed || contextLost) return
@@ -75,7 +74,7 @@ export default function CameraInstallation({ paused, reduced, shot }) {
         if (previous && now - previous < 1000 / 30 - 1) return
         if (previous) {
           const elapsed = now - previous
-          time += Math.min(elapsed / 1000, .05)
+          time += Math.min(elapsed / 1000, .05) * 1.28
           // Respond to measured load, not browser/GPU fingerprinting. Keep
           // geometric detail; lower only moving pixels when rendering is slow.
           slowFrames = elapsed > 52 ? slowFrames + 1 : Math.max(0, slowFrames - 1)
@@ -131,7 +130,7 @@ export default function CameraInstallation({ paused, reduced, shot }) {
   useEffect(() => { if (shot) controller.current?.shoot() }, [shot])
   return <div className={`camera-installation camera-${mode}`} data-mode={mode}>
     <div ref={host} className="camera-canvas" role="img" aria-label="Mô hình máy ảnh 3D mirrorless minh họa với báng cầm có vân, ống kính nhiều lớp, kính quang học và nút điều khiển trong ánh sáng Studio" />
-    {mode !== '3d' && <div className="installation-fallback"><PhotographerScene shot={shot} /></div>}
+    {mode !== '3d' && <div className="installation-fallback" aria-hidden="true"><StudioIcon name="camera" /></div>}
     {mode === '3d' && <button className="camera-angle-button" onClick={() => controller.current?.rotate()}><StudioIcon name="aperture" />Đổi góc nhìn</button>}
     <span className="installation-label">{mode === '3d' ? 'Nghiên cứu ánh sáng · Máy ảnh mirrorless 3D' : mode === 'fallback' ? 'Minh họa Studio · Thiết bị không hỗ trợ 3D' : 'Đang mở không gian 3D…'}</span>
     {shot > 0 && <span key={shot} className="camera-shutter-glow" aria-hidden="true" />}

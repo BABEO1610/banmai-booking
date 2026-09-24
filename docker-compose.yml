@@ -6,12 +6,18 @@ services:
     env_file:
       - ./server/.env
     environment:
-      # The host .env may contain a Windows certificate path; use the path inside the image.
+      NODE_ENV: production
+      WORKER_MODE: in-process
+      TRUST_PROXY: "true"
       DATABASE_SSL_CA_PATH: /app/server/certs/supabase-ca.pem
-    expose:
-      - "3000"
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-credentials.json
+    secrets:
+      - source: google-credentials
+        target: google-credentials.json
     volumes:
       - banmai-media:/app/server/.data/media
+    expose:
+      - "3000"
     restart: unless-stopped
     init: true
 
@@ -23,8 +29,12 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "${WEB_PORT:-80}:80"
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-80}:80"
     restart: unless-stopped
 
 volumes:
   banmai-media:
+
+secrets:
+  google-credentials:
+    file: ${GOOGLE_CREDENTIALS_FILE:-./secrets/google-credentials.json}

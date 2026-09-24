@@ -1,5 +1,4 @@
 import fs from 'node:fs'
-import { google } from 'googleapis'
 import { config } from '../../config/env.js'
 
 export const SHEET_HEADERS = [
@@ -19,6 +18,8 @@ let clientPromise
 async function sheetsClient() {
   if (!credentialsReady()) throw new Error('Google Sheets chưa được cấu hình: kiểm tra SHEETS_MODE, SHEETS_SPREADSHEET_ID và GOOGLE_APPLICATION_CREDENTIALS')
   clientPromise ||= (async () => {
+    const { google } = await import('googleapis')
+    google.options({ timeout: 10000, retry: false })
     const auth = new google.auth.GoogleAuth({ keyFile: config.sheetsCredentialsPath, scopes: ['https://www.googleapis.com/auth/spreadsheets'] })
     return google.sheets({ version: 'v4', auth: await auth.getClient() })
   })()

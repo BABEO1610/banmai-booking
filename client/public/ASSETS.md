@@ -13,12 +13,13 @@ Ban Mai là tên minh họa trong prototype, chưa xác nhận nhận diện Stu
 | images/color-street.jpg | https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1000&q=82 |
 | images/together-close.jpg | https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?auto=format&fit=crop&w=1000&q=82 |
 | images/together-ceremony.jpg | https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1000&q=82 |
-| images/studio-pet-owner.webp | Minh họa linh vật được tạo bằng công cụ imagegen từ ảnh tham chiếu do Studio cung cấp; không đăng ảnh gốc lên website. |
 
 License: [Unsplash](https://unsplash.com/license), kiểm tra lại 2026-09-17. Thay bằng ảnh Studio có quyền sử dụng trước khi coi prototype là portfolio thật. Bộ sưu tập demo dùng 3 ảnh khác nhau/concept, không giả các crop của cùng một ảnh thành nhiều sản phẩm.
 
 Máy ảnh mirrorless 3D được dựng bằng geometry gốc trong code, không dùng model tải ngoài hay sao chép model của hãng. Texture cao su/nhãn/màn hình sinh bằng canvas tại máy; môi trường phản chiếu dùng RoomEnvironment/PMREM của Three.js, không dùng file HDR hoặc dịch vụ asset ngoài. Minh họa photographer SVG là đồ họa gốc dùng khi WebGL không khả dụng. Không truy cập webcam hay tạo ảnh thật. Đây là minh họa thiết bị, không phải ảnh sản phẩm thật.
 
-Font Be Vietnam Pro Regular/SemiBold từ [Google Fonts repository](https://github.com/google/fonts/tree/main/ofl/bevietnampro), self-host TTF đủ glyph tiếng Việt. SIL Open Font License đính kèm fonts/OFL-BeVietnamPro.txt; có thể chuyển WOFF2/subset khi tối ưu production.
+Font Be Vietnam Pro Regular/SemiBold từ [Google Fonts repository](https://github.com/google/fonts/tree/main/ofl/bevietnampro), self-host WOFF2 đủ glyph tiếng Việt. SIL Open Font License đính kèm fonts/OFL-BeVietnamPro.txt; đã chuyển WOFF2 giữ nguyên glyph.
 
 Font trưng bày Playfair Display regular/italic variable từ [Google Fonts repository](https://github.com/google/fonts/tree/main/ofl/playfairdisplay), self-host TTF để tiêu đề tiếng Việt không bị trộn glyph từ font hệ thống. SIL Open Font License đính kèm fonts/OFL-PlayfairDisplay.txt.
+
+Các biến thể `*-400.webp` và `*-800.webp` được tối ưu từ ảnh JPG tương ứng; nguồn và quyền sử dụng không thay đổi.

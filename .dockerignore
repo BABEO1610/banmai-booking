@@ -15,3 +15,13 @@ docs
 specs
 speckit
 .agents
+secrets
+
+test-results-*
+tests
+server/tests
+design-system
+Ảnh
+*.docx
+plan*.md
+admin_features.md

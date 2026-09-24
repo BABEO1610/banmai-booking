@@ -1,23 +1,23 @@
-import { useEffect, useRef } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useRef } from 'react'
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext.jsx'
-import HomePage from './pages/public/HomePage.jsx'
-import PackagesPage from './pages/public/PackagesPage.jsx'
-import PortfolioPage from './pages/public/PortfolioPage.jsx'
-import PolicyPage from './pages/public/PolicyPage.jsx'
-import LoginPage from './pages/auth/LoginPage.jsx'
-import RegisterPage from './pages/auth/RegisterPage.jsx'
-import VerifyEmailPage from './pages/auth/VerifyEmailPage.jsx'
-import ResetPasswordPage from './pages/auth/ResetPasswordPage.jsx'
-import ActivateAccountPage from './pages/auth/ActivateAccountPage.jsx'
+const HomePage = lazy(() => import('./pages/public/HomePage.jsx'))
+const PackagesPage = lazy(() => import('./pages/public/PackagesPage.jsx'))
+const PortfolioPage = lazy(() => import('./pages/public/PortfolioPage.jsx'))
+const PolicyPage = lazy(() => import('./pages/public/PolicyPage.jsx'))
+const LoginPage = lazy(() => import('./pages/auth/LoginPage.jsx'))
+const RegisterPage = lazy(() => import('./pages/auth/RegisterPage.jsx'))
+const VerifyEmailPage = lazy(() => import('./pages/auth/VerifyEmailPage.jsx'))
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage.jsx'))
+const ActivateAccountPage = lazy(() => import('./pages/auth/ActivateAccountPage.jsx'))
 import ProtectedRoute from './components/auth/ProtectedRoute.jsx'
-import ForbiddenPage from './pages/public/ForbiddenPage.jsx'
-import BookingPage from './pages/customer/BookingPage.jsx'
-import BookingsPage from './pages/customer/BookingsPage.jsx'
-import PaymentPage from './pages/customer/PaymentPage.jsx'
-import AdminPage from './pages/admin/AdminPage.jsx'
-import CalendarPage from './pages/photographer/CalendarPage.jsx'
-import NotFoundPage from './pages/public/NotFoundPage.jsx'
+const ForbiddenPage = lazy(() => import('./pages/public/ForbiddenPage.jsx'))
+const BookingPage = lazy(() => import('./pages/customer/BookingPage.jsx'))
+const BookingsPage = lazy(() => import('./pages/customer/BookingsPage.jsx'))
+const PaymentPage = lazy(() => import('./pages/customer/PaymentPage.jsx'))
+const AdminPage = lazy(() => import('./pages/admin/AdminPage.jsx'))
+const CalendarPage = lazy(() => import('./pages/photographer/CalendarPage.jsx'))
+const NotFoundPage = lazy(() => import('./pages/public/NotFoundPage.jsx'))
 function RouteFocus() {
   const { pathname } = useLocation()
   const previous = useRef(pathname)
@@ -31,7 +31,7 @@ function RouteFocus() {
 }
 
 export default function App() {
-  return <AuthProvider><BrowserRouter><RouteFocus /><Routes>
+  return <AuthProvider><BrowserRouter><Suspense fallback={<main id="route-loading" className="simple-page" role="status">Đang mở trang…</main>}><RouteFocus /><Routes>
     <Route path="/" element={<HomePage />} />
     <Route path="/packages" element={<PackagesPage />} />
     <Route path="/portfolio" element={<PortfolioPage />} />
@@ -48,5 +48,5 @@ export default function App() {
     <Route path="/photographer/*" element={<ProtectedRoute roles={['PHOTOGRAPHER']}><CalendarPage /></ProtectedRoute>} />
     <Route path="/forbidden" element={<ForbiddenPage />} />
     <Route path="*" element={<NotFoundPage />} />
-  </Routes></BrowserRouter></AuthProvider>
+  </Routes></Suspense></BrowserRouter></AuthProvider>
 }

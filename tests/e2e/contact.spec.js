@@ -18,7 +18,7 @@ async function prepare(page, config = {}) {
 
 for (const width of [1440, 1024, 390, 320]) test(`shared customer care, keyboard navigation and configured links at ${width}px`, async ({ page }, testInfo) => {
   const errors = []; page.on('pageerror', (error) => errors.push(error.message))
-  await prepare(page, { zalo: 'https://zalo.me/0900000000', facebook: 'https://www.facebook.com/studio-test' })
+  await prepare(page, { zalo: 'https://zalo.me/0900000000', facebook: 'https://www.facebook.com/studio-test', tiktok: 'https://www.tiktok.com/@studio-test' })
   await page.setViewportSize({ width, height: 960 }); await page.goto('/policy')
   if (width <= 900) await page.getByRole('button', { name: 'Menu' }).click()
   const help = page.getByRole('navigation').getByRole('link', { name: 'Liên hệ', exact: true })
@@ -27,13 +27,15 @@ for (const width of [1440, 1024, 390, 320]) test(`shared customer care, keyboard
   if (width <= 900) await expect(page.getByRole('navigation')).toBeHidden()
   const zalo = page.getByRole('link', { name: /Nhắn tin qua Zalo/ })
   const fb = page.getByRole('link', { name: /Ghé Facebook Studio/ })
+  const tiktok = page.getByRole('link', { name: /Xem TikTok Studio/ })
   await expect(zalo).toHaveAttribute('href', 'https://zalo.me/0900000000')
   await expect(fb).toHaveAttribute('href', 'https://www.facebook.com/studio-test')
-  for (const link of [zalo, fb]) {
+  await expect(tiktok).toHaveAttribute('href', 'https://www.tiktok.com/@studio-test')
+  for (const link of [zalo, fb, tiktok]) {
     await expect(link).toHaveAttribute('target', '_blank'); await expect(link).toHaveAttribute('rel', 'noopener noreferrer')
     expect((await link.boundingBox()).height).toBeGreaterThanOrEqual(44)
   }
-  await page.keyboard.press('Tab'); await expect(zalo).toBeFocused()
+  await page.keyboard.press('Tab'); await expect(tiktok).toBeFocused()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.evaluate(() => document.fonts.ready)
   await page.locator('#studio-contact').screenshot({ path: testInfo.outputPath(`contact-${width}.png`) })
@@ -42,7 +44,7 @@ for (const width of [1440, 1024, 390, 320]) test(`shared customer care, keyboard
 
 test('missing and unsafe contact links are not fake clickable channels', async ({ page }) => {
   await prepare(page, { zalo: '', facebook: 'javascript:alert(1)' }); await page.goto('/login')
-  await expect(page.locator('.contact-unavailable')).toHaveCount(2)
+  await expect(page.locator('.contact-unavailable')).toHaveCount(3)
   await expect(page.locator('.contact-unavailable').first()).toHaveText('Studio chưa cập nhật link liên hệ')
   await expect(page.locator('.contact-link')).toHaveCount(0)
 })
@@ -57,6 +59,7 @@ test('contact configuration failure is safe and never blocks the page', async ({
 
 test('professional camera has three distinct angles including the rear controls', async ({ page }, testInfo) => {
   await prepare(page); await page.emulateMedia({ reducedMotion: 'reduce' }); await page.goto('/')
+  await page.getByRole('button', { name: 'Khám phá máy ảnh 3D' }).click()
   await expect(page.locator('.camera-installation')).toHaveAttribute('data-mode', '3d', { timeout: 20000 })
   const canvas = page.locator('.camera-canvas canvas'), images = []
   expect(Number(await canvas.getAttribute('data-draw-calls'))).toBeLessThanOrEqual(32)

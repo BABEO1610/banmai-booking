@@ -11,6 +11,9 @@ out/
 .env.*
 !.env.example
 
+# Deployment credentials
+/secrets/
+
 # Local data
 .data/
 server/.data/

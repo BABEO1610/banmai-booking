@@ -36,7 +36,8 @@ export default function BookingPage() {
   }, [selectedPackage])
   useEffect(() => { idempotencyKey.current = null }, [date])
   useEffect(() => {
-    api.catalog().then((data) => {
+    api.request('/packages').then((packages) => {
+      const data = { packages }
       setPackages(data.packages)
       const requested = data.packages.find((pkg) => pkg.bookable && pkg.id === params.get('package'))
       setPackageId(requested?.id || data.packages.find((pkg) => pkg.bookable)?.id || '')

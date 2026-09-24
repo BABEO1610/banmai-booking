@@ -11,13 +11,14 @@ export default function usePortfolio() {
   useEffect(() => {
     let active = true
     let pending = false
+    let lastFetched = 0
     const refresh = async () => {
-      if (pending) return
+      if (pending || Date.now() - lastFetched < 30000) return
       pending = true
       setLoading(true)
       try {
         const data = await api.request('/portfolio')
-        if (active) { setItems(data); setError('') }
+        if (active) { setItems(data); setError(''); lastFetched = Date.now() }
       } catch {
         if (active) setError('Không tải được bộ ảnh mới nhất. Vui lòng thử lại.')
       } finally {

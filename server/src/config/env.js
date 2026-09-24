@@ -1,4 +1,5 @@
 import path from 'node:path'
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
 
@@ -57,6 +58,11 @@ export const config = {
 export function validateConfig({ mode = config.nodeEnv } = {}) {
   if (!['development', 'test', 'production'].includes(mode)) throw new Error(`NODE_ENV không hợp lệ: ${mode}`)
   if (mode === 'production') {
+    if (config.dataMode !== 'postgres' || config.emailMode !== 'smtp' || config.paymentMode !== 'sepay' || !['google', 'disabled'].includes(config.sheetsMode) || config.smsMode !== 'disabled') throw new Error('Production yêu cầu postgres, smtp, sepay; Sheets google/disabled; SMS disabled')
+    if (config.workerMode !== 'in-process') throw new Error('Snapshot store yêu cầu WORKER_MODE=in-process; không chạy worker riêng')
+    if (config.sheetsMode === 'google' && (!config.sheetsSpreadsheetId || !config.sheetsCredentialsPath || !fs.existsSync(config.sheetsCredentialsPath))) throw new Error('Google Sheets production thiếu spreadsheet hoặc file credentials')
+    if (!config.publicOrigin.startsWith('https://')) throw new Error('PUBLIC_ORIGIN production phải dùng HTTPS')
+    if (!config.sepayApiKey || !config.sepayBankAccount || !config.sepayAccountHolder) throw new Error('Thiếu cấu hình SePay production')
     if (config.dataMode === 'mock' || config.paymentMode === 'mock' || config.smsMode === 'mock' || config.sheetsMode === 'mock') throw new Error('Production không được bật mock controls')
     for (const [name, value] of [['DATABASE_URL', config.databaseUrl], ['SESSION_SECRET', process.env.SESSION_SECRET], ['EMAIL_CODE_HMAC_SECRET', process.env.EMAIL_CODE_HMAC_SECRET]]) if (!value) throw new Error(`Thiếu cấu hình bắt buộc: ${name}`)
     if (config.sessionSecret.length < 32 || config.emailCodeSecret.length < 32) throw new Error('SESSION_SECRET và EMAIL_CODE_HMAC_SECRET phải dài ít nhất 32 ký tự')

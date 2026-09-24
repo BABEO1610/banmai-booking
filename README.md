@@ -173,7 +173,7 @@ Kiểm tra thủ công thêm:
 
 UI hiện hành nằm trong `client/src/components/public`, `client/src/pages/public`, `client/src/pages/customer` và `client/src/pages/admin`. Theme chính là `studio-design.css` và `photographic-art.css`.
 
-`client/src/styles.css` và `client/src/components/showcase` là prototype cũ, không được mount trong ứng dụng hiện tại.
+Prototype showcase, CSS cũ và nhân vật pixel đã được loại bỏ. Xem `PRODUCTION.md` để biết cấu hình triển khai và giới hạn dữ liệu.
 
 Ảnh/font tĩnh của landing nằm trong `client/public`; danh sách nguồn được ghi tại [client/public/ASSETS.md](client/public/ASSETS.md).
 

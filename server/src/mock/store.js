@@ -6,6 +6,7 @@ import { paymentRequest } from '../services/payment/payment-request.js'
 import { applyPackagePrices, bookingPackages, enableFullDayBooking, occupiedMinutes } from '../../../shared/booking-packages.js'
 import { normalizeLocation } from '../services/location.service.js'
 import { createPool } from '../db/pool.js'
+import { processOutboxBatch } from '../jobs/process-outbox.job.js'
 import { DurableState } from '../db/durable-state.js'
 import { AppError } from '../middleware/error.middleware.js'
 import { hashCode, hashPassword, randomCode, verifyPassword } from '../utils/crypto.js'
@@ -29,8 +30,8 @@ export class DemoStore {
     this.state = { users: [], challenges: [], mail: [], packages: [], addons: [], portfolio: [], contents: [], policies: [], bookings: [], payments: [], receipts: [], assignments: [], blocks: [], audits: [], outbox: [], settings: null, idempotency: {} }
     this.pool = config.dataMode === 'postgres' ? createPool() : null
     this.ready = this.load().then(async () => {
-      const pricesChanged = applyPackagePrices(this.state)
-      const scheduleChanged = enableFullDayBooking(this.state)
+      const pricesChanged = config.nodeEnv !== 'production' && applyPackagePrices(this.state)
+      const scheduleChanged = config.nodeEnv !== 'production' && enableFullDayBooking(this.state)
       if (pricesChanged || scheduleChanged) await this.persist()
     })
   }
@@ -41,9 +42,9 @@ export class DemoStore {
     if (this.pool) {
       let result
       for (let attempt = 1; attempt <= 3; attempt += 1) {
-        try { result = await this.pool.query('select state from app.demo_state where id = 1'); break } catch (error) { if (attempt === 3) throw error; await wait(attempt * 1000) }
+        try { result = await this.pool.query('select state, updated_at::text as revision from app.demo_state where id = 1'); break } catch (error) { if (attempt === 3) throw error; await wait(attempt * 1000) }
       }
-      if (result.rows[0]?.state) { this.state = { ...this.state, ...result.rows[0].state }; this.normalizePortfolioState(); return }
+      if (result.rows[0]?.state) { this.revision = result.rows[0].revision; this.state = { ...this.state, ...result.rows[0].state }; this.normalizePortfolioState(); return }
       await this.seed()
       return
     }
@@ -52,15 +53,32 @@ export class DemoStore {
     this.normalizePortfolioState()
   }
 
-  async persist(state = this.state) { if (this.pool) await this.pool.query('insert into app.demo_state (id, state, updated_at) values (1, $1::jsonb, now()) on conflict (id) do update set state = excluded.state, updated_at = excluded.updated_at', [JSON.stringify(state)]); else { const temporary = `${dataFile}.tmp`; await fs.promises.writeFile(temporary, JSON.stringify(state, null, 2), 'utf8'); await fs.promises.rename(temporary, dataFile) } }
+  async persist(state = this.state) {
+    if (this.pool) {
+      const serialized = JSON.stringify(state)
+      const result = this.revision
+        ? await this.pool.query('update app.demo_state set state = $1::jsonb, updated_at = clock_timestamp() where id = 1 and updated_at = $2::timestamptz returning updated_at::text as revision', [serialized, this.revision])
+        : await this.pool.query('insert into app.demo_state (id, state, updated_at) values (1, $1::jsonb, clock_timestamp()) on conflict (id) do nothing returning updated_at::text as revision', [serialized])
+      if (!result.rows.length) throw new AppError(409, 'STATE_CONFLICT', 'Dữ liệu vừa được cập nhật. Vui lòng tải lại và thử lại.')
+      this.revision = result.rows[0].revision
+    } else {
+      const temporary = `${dataFile}.tmp`
+      await fs.promises.writeFile(temporary, JSON.stringify(state), 'utf8')
+      await fs.promises.rename(temporary, dataFile)
+    }
+  }
   async mutate(fn) {
     return this.durableState.run(fn, {
       ready: this.ready,
-      persist: (state) => this.persist(state),
+      persist: state => this.persist(state),
       reload: async () => {
-        const state = this.pool ? (await this.pool.query('select state from app.demo_state where id = 1')).rows[0]?.state : JSON.parse(await fs.promises.readFile(dataFile, 'utf8'))
-        if (!state) throw new Error('Cannot reconcile persisted state; writes remain blocked')
-        return state
+        if (this.pool) {
+          const result = await this.pool.query('select state, updated_at::text as revision from app.demo_state where id = 1')
+          if (!result.rows[0]?.state) throw new Error('Cannot reconcile persisted state')
+          this.revision = result.rows[0].revision
+          return result.rows[0].state
+        }
+        return JSON.parse(await fs.promises.readFile(dataFile, 'utf8'))
       },
     })
   }
@@ -80,6 +98,11 @@ export class DemoStore {
   outbox(type, payload, bookingId = null) { const channel = ['booking.created', 'booking.expired'].includes(type) ? 'internal' : 'sheets'; this.state.outbox.push({ id: id('evt'), type, channel, bookingId, payload: clone(payload), status: 'PENDING', attempts: 0, availableAt: now(), createdAt: now() }) }
 
   async seed() {
+    if (config.nodeEnv === 'production') {
+      // A fresh production database must never receive demo credentials or stock galleries.
+      await this.persist()
+      return
+    }
     const passwordHash = await hashPassword(process.env.DEMO_PASSWORD || 'Demo1234!')
     const makeUser = (email, role, name, status = 'ACTIVE', verified = true) => ({ id: id('usr'), email, role, name, status, emailVerified: verified, passwordHash, createdAt: now() })
     this.state.users = [
@@ -97,7 +120,7 @@ export class DemoStore {
       { id: 'color', name: 'Sắc riêng', description: 'Tự tin là chính mình', image: '/images/portrait.jpg', visible: true, published: true, featured: false },
       { id: 'together', name: 'Chung đôi', description: 'Cùng nhau giữ một khoảnh khắc', image: '/images/together.jpg', visible: true, published: true, featured: true },
     ]
-    this.state.contents = [{ id: 'home-intro', key: 'home_intro', title: 'Một góc nhìn rất riêng về bạn.', body: 'Một chút ánh sáng, một chút tự nhiên. Để mỗi khung hình giữ lại đúng cảm xúc của bạn.', published: true, version: 1 }]
+    this.state.contents = [{ id: 'home-intro', key: 'home_intro', title: 'Một góc nhìn rất riêng về bạn.', body: 'Một chút ánh sáng, một chút tự nhiên. Để mỗi khung hình giữ lại đúng cảm xúc của bạn.', image: '/images/daylight.jpg', published: true, version: 1 }]
     this.state.policies = [{ id: 'policy-demo', key: 'booking', title: 'Chính sách đang chờ công bố', body: 'Các mốc hủy, hoàn cọc và dời lịch sẽ hiển thị sau khi Studio xác nhận chính sách.', published: true, version: 1 }]
     this.state.settings = null
     await this.persist()
@@ -113,6 +136,8 @@ export class DemoStore {
   }
   publicCatalog() { return { packages: this.state.packages.filter((p) => p.visible && p.published).map((p) => ({ ...p, price: { amount: String(p.priceVnd), currency: 'VND' } })), addons: this.state.addons.filter((p) => p.visible && p.published).map((p) => ({ ...p, price: { amount: String(p.priceVnd), currency: 'VND' } })), portfolio: this.state.portfolio.filter((p) => p.visible && p.published).map((p) => ({ ...p, image: p.coverImage || p.image, images: p.images || [] })), contents: this.state.contents.filter((p) => p.published), policies: this.state.policies.filter((p) => p.published) } }
   adminCatalog() { return clone({ packages: this.state.packages, addons: this.state.addons, portfolio: this.state.portfolio, contents: this.state.contents, policies: this.state.policies }) }
+  normalizeContent(input, existing = {}) { const title = String(input.title ?? existing.title ?? '').trim(); const body = String(input.body ?? existing.body ?? '').trim(); const image = String(input.image ?? existing.image ?? '').trim(); if (!title || title.length > 160) throw new AppError(400, 'VALIDATION_ERROR', 'Tiêu đề nội dung bắt buộc và tối đa 160 ký tự'); if (body.length > 2000) throw new AppError(400, 'VALIDATION_ERROR', 'Nội dung tối đa 2000 ký tự'); if (image && !(/^\/(?!\/)/.test(image) || /^https?:\/\//i.test(image))) throw new AppError(400, 'VALIDATION_ERROR', 'Ảnh phải là đường dẫn nội bộ hoặc URL http(s)'); return { ...existing, title, body, image: image || null, published: input.published ?? existing.published ?? true, version: (existing.version || 0) + 1 } }
+  async updateContent(contentId, patch, actorId, expectedVersion) { return this.mutate(async () => { const item = this.state.contents.find((entry) => entry.id === contentId || entry.key === contentId); if (!item) throw new AppError(404, 'NOT_FOUND', 'Không tìm thấy nội dung'); if (expectedVersion != null && Number(expectedVersion) !== item.version) throw new AppError(409, 'VERSION_CONFLICT', 'Nội dung đã được cập nhật, vui lòng tải lại'); const before = clone(item); Object.assign(item, this.normalizeContent(patch, item)); this.audit(actorId, 'CONTENT_UPDATED', 'content', item.id, before, item); return clone(item) }) }
   normalizePackage(input, existing = {}) {
     const name = String(input.name ?? existing.name ?? '').trim()
     const priceVnd = Number(input.priceVnd ?? existing.priceVnd)
@@ -167,7 +192,7 @@ export class DemoStore {
 
   activeBookings() { const current = Date.now(); return this.state.bookings.filter((b) => ['PENDING', 'CONFIRMED'].includes(b.status) && (!b.holdExpiresAt || new Date(b.holdExpiresAt).getTime() > current)) }
   overlap(aStart, aEnd, bStart, bEnd) { return new Date(aStart) < new Date(bEnd) && new Date(bStart) < new Date(aEnd) }
-  async expireHolds() { return this.mutate(async () => { const expired = []; for (const booking of this.state.bookings) if (booking.status === 'PENDING' && new Date(booking.holdExpiresAt) <= new Date()) { const before = { ...booking }; booking.status = 'EXPIRED'; booking.updatedAt = now(); expired.push(booking.id); this.audit(null, 'HOLD_EXPIRED', 'booking', booking.id, before, booking); this.outbox('booking.expired', { bookingId: booking.id }, booking.id) } return expired }) }
+  async expireHolds() { await this.ready; if (!this.state.bookings.some(b => b.status === 'PENDING' && new Date(b.holdExpiresAt) <= new Date())) return []; return this.mutate(async () => { const expired = []; for (const booking of this.state.bookings) if (booking.status === 'PENDING' && new Date(booking.holdExpiresAt) <= new Date()) { const before = { ...booking }; booking.status = 'EXPIRED'; booking.updatedAt = now(); expired.push(booking.id); this.audit(null, 'HOLD_EXPIRED', 'booking', booking.id, before, booking); this.outbox('booking.expired', { bookingId: booking.id }, booking.id) } return expired }) }
   assertSettings() { if (!this.state.settings || !Number.isInteger(this.state.settings.maxConcurrentBookings) || this.state.settings.maxConcurrentBookings < 1) throw new AppError(503, 'CONFIGURATION_REQUIRED', 'Admin cần cấu hình giới hạn nhận booking trước khi mở lịch') }
   availability({ packageId, from, to }) { const pkg = this.state.packages.find((p) => p.id === packageId); const settings = this.state.settings; if (!pkg || !pkg.visible || !pkg.published || !pkg.bookable) return { available: false, reason: pkg?.bookableReason || 'Gói chưa bookable' }; if (!settings) return { available: false, reason: 'Chưa có cấu hình giới hạn nhận khách' }; const start = from || new Date().toISOString(); const end = to || new Date(new Date(start).getTime() + occupiedMinutes(pkg) * 60_000).toISOString(); const used = this.activeBookings().filter((b) => this.overlap(start, end, b.startAt, b.endAt)).length; const blocked = this.state.blocks.some((b) => this.overlap(start, end, b.startAt, b.endAt)); return { available: !blocked && used < settings.maxConcurrentBookings, used, limit: settings.maxConcurrentBookings, startAt: start, endAt: end, blocked } }
   async updateSettings(input, actorId) { return this.mutate(async () => { const max = Number(input.maxConcurrentBookings); const before = this.state.settings; if (!Number.isInteger(max) || max < 1) throw new AppError(400, 'VALIDATION_ERROR', 'Giới hạn phải là số nguyên dương'); const after = { maxConcurrentBookings: max, bufferBeforeMinutes: Math.max(0, Number(input.bufferBeforeMinutes || 0)), bufferAfterMinutes: Math.max(0, Number(input.bufferAfterMinutes || 0)), timezone: input.timezone || config.timezone, version: (before?.version || 0) + 1, updatedAt: now() }; this.state.settings = after; this.audit(actorId, 'BOOKING_SETTINGS_UPDATED', 'settings', 'booking', before, after); return after }) }
@@ -267,14 +292,14 @@ export class DemoStore {
     }
   }
   async processOutbox() {
-    return this.mutate(async () => {
-      const events = this.state.outbox.filter((item) => (item.channel === 'sheets' || !item.channel) && ['PENDING', 'RETRY'].includes(item.status))
-      events.forEach((item) => { const booking = item.bookingId && this.state.bookings.find((candidate) => candidate.id === item.bookingId); if (booking && (!booking.assignmentId || !['CONFIRMED', 'COMPLETED'].includes(booking.status))) item.status = 'SKIPPED' })
-      const eligible = events.filter((item) => item.status !== 'SKIPPED')
-      eligible.forEach((item) => { item.channel = 'sheets' })
+    if (config.sheetsMode === 'disabled') return []
+    if (this.outboxRun) return this.outboxRun
+    const run = async () => {
       const { deliverOutbox } = await import('../jobs/deliver-outbox.job.js')
-      return deliverOutbox(eligible, { rowForBooking: async (bookingId) => this.sheetRowForBooking(bookingId) })
-    })
+      return processOutboxBatch(this, deliverOutbox)
+    }
+    this.outboxRun = run().finally(() => { this.outboxRun = null })
+    return this.outboxRun
   }
   async updateBooking(bookingId, patch, actorId, expectedVersion) {
     return this.mutate(async () => {
@@ -316,7 +341,14 @@ export class DemoStore {
     const upcoming = this.state.bookings.filter((item) => ['PENDING', 'CONFIRMED'].includes(item.status) && new Date(item.startAt) >= new Date())
     return { today: this.state.bookings.filter((item) => item.startAt.slice(0, 10) === today).length, upcoming: upcoming.length, unassigned: this.state.bookings.filter((item) => item.status === 'CONFIRMED' && !item.assignmentId).length, outstandingVnd: this.state.bookings.reduce((sum, item) => sum + Math.max(0, item.totalVnd - item.paidVnd), 0), sheetsErrors: this.state.outbox.filter((item) => item.channel === 'sheets' && item.status === 'RETRY').length }
   }
-  integrationStatus() { return { mode: 'DEMO', services: [{ target: 'email', mode: 'local-mailbox', status: 'READY', note: 'Chỉ dùng hộp thư local' }, { target: 'payment', mode: 'fake', status: 'READY', note: 'Không phải giao dịch ngân hàng' }, { target: 'sms', mode: 'fake', status: 'READY', note: 'Chưa gửi SMS thật' }, { target: 'sheets', mode: 'fake', status: 'READY', note: 'Chưa ghi Google Sheets thật' }], outbox: this.state.outbox.slice(-50).reverse().map((item) => ({ id: item.id, type: item.type, status: item.status, attempts: item.attempts, createdAt: item.createdAt })) } }
+  integrationStatus() {
+    const services = [
+      { target: 'email', mode: config.emailMode, status: config.emailMode === 'smtp' ? 'CONFIGURED' : 'DEMO', note: config.emailMode === 'smtp' ? 'Gửi email qua SMTP' : 'Hộp thư thử nghiệm' },
+      { target: 'payment', mode: config.paymentMode, status: config.paymentMode === 'sepay' ? 'CONFIGURED' : 'DEMO', note: config.paymentMode === 'sepay' ? 'Đối soát chuyển khoản qua SePay' : 'Thanh toán thử nghiệm' },
+      { target: 'sms', mode: config.smsMode, status: config.smsMode === 'disabled' ? 'DISABLED' : 'DEMO', note: 'Chưa bật gửi SMS' },
+    ]
+    return { mode: config.nodeEnv, services, outbox: this.state.outbox.slice(-50).reverse().map(item => ({ id: item.id, type: item.type, status: item.status, attempts: item.attempts, createdAt: item.createdAt })) }
+  }
   auditList() { return this.state.audits.slice(-100).reverse().map((a) => ({ ...a, before: a.before ? '[redacted projection]' : null, after: a.after ? '[redacted projection]' : null })) }
 }
 

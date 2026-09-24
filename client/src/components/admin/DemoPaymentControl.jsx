@@ -1,3 +1,0 @@
-import { useState } from 'react'
-import api from '../../services/api.js'
-export default function DemoPaymentControl({ booking, csrf, onDone }) { const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const simulate = async () => { setBusy(true); setError(''); try { await api.simulatePayment(booking.id, { amountVnd: 500000, transactionId: `demo-${booking.id}` }, csrf); onDone() } catch (err) { setError(err.message) } finally { setBusy(false) } }; return <div>{error && <p className="form-error" role="alert">{error}</p>}<button className="small-action" disabled={busy || booking.status !== 'PENDING'} onClick={simulate}>{busy ? 'Đang ghi…' : 'Mô phỏng cọc 500k'}</button></div> }
