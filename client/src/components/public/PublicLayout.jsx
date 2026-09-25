@@ -38,18 +38,30 @@ export default function PublicLayout({ children, workspace = false }) {
     try { await logout(); navigate('/') } catch (err) { setError(err.message) } finally { setBusy(false) }
   }
   const accountPath = ROLE_HOME[user?.role] || '/'
-  return <div className="app-shell">
+  const goContact = (event) => {
+    event.preventDefault()
+    setOpen(false)
+    requestAnimationFrame(() => {
+      const contact = document.getElementById('studio-contact')
+      if (contact) {
+        contact.focus({ preventScroll: true })
+        contact.scrollIntoView({ behavior: 'instant', block: 'start' })
+      } else navigate('/#studio-contact')
+    })
+  }
+  return <div className={`app-shell ${workspace ? 'workspace-shell' : 'public-shell'}`}>
     <a className="skip-link" href="#main-content">Bỏ qua menu, tới nội dung</a>
     <header className="header-wrap"><div className="app-header">
       <Link className="app-brand" to="/" aria-label="Ban Mai — Trang chủ"><span className="brand-aperture"><StudioIcon name="aperture" /></span>ban mai<span>.</span></Link>
       <button ref={menuButton} className="menu-toggle" aria-expanded={open} aria-controls="primary-navigation" onClick={() => setOpen(!open)}>{open ? 'Đóng' : 'Menu'}<StudioIcon name={open ? 'close' : 'menu'} /></button>
       <nav ref={nav} id="primary-navigation" aria-label="Điều hướng chính" className={open ? 'is-open' : ''}>
         <><NavLink to="/portfolio">Bộ ảnh</NavLink><NavLink to="/packages">Gói chụp</NavLink><NavLink to="/policy">Chính sách</NavLink>
-        <a href="#studio-contact" onClick={(event) => { event.preventDefault(); setOpen(false); requestAnimationFrame(() => { const contact = document.getElementById('studio-contact'); if (contact) { contact.focus({ preventScroll: true }); contact.scrollIntoView({ behavior: 'instant', block: 'start' }) } else navigate('/#studio-contact') }) }}>Liên hệ</a></>
+        <a href="#studio-contact" onClick={goContact}>Liên hệ</a></>
         {!loading && (user ? <><NavLink to={accountPath}>{user.role === 'ADMIN' ? 'Vận hành' : user.role === 'PHOTOGRAPHER' ? 'Lịch của tôi' : 'Booking của tôi'}</NavLink><button className="text-button" disabled={busy} onClick={signOut}>{busy ? 'Đang thoát…' : 'Đăng xuất'}</button></> : <NavLink to="/login">Đăng nhập</NavLink>)}
         <Link className="app-header-cta" to="/book">Đặt lịch <StudioIcon /></Link>
       </nav>
     </div></header>
+    {!workspace && <div className="mobile-bottom-nav" role="group" aria-label="Điều hướng nhanh"><NavLink to="/portfolio"><StudioIcon name="aperture" /><span>Bộ ảnh</span></NavLink><NavLink to="/packages"><StudioIcon name="camera" /><span>Gói chụp</span></NavLink><NavLink className="mobile-bottom-cta" to="/book"><StudioIcon name="arrow" /><span>Đặt lịch</span></NavLink><a href="#studio-contact" onClick={goContact}><StudioIcon name="message" /><span>Liên hệ</span></a></div>}
     {error && <p className="form-error layout-error" role="alert">{error}</p>}
     <div id="main-content" tabIndex="-1">{children}</div>
     {!workspace && <footer className="app-footer"><StudioContact /><div className="footer-top"><Link className="app-brand" to="/">ban mai<span>.</span></Link><p>Những khung hình có bạn.<br />Những câu chuyện còn ở lại.</p><Link className="under-link" to="/book">Hẹn một buổi chụp ↗</Link></div><div className="footer-bottom"><span>© {new Date().getFullYear()} Ban Mai Studio</span><span>Lưu giữ những khoảnh khắc của bạn.</span></div></footer>}

@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { Link, useSearchParams } from 'react-router-dom'
 import PublicLayout from '../../components/public/PublicLayout.jsx'
 import { PortfolioGrid } from '../../components/public/CatalogSections.jsx'
+import StudioImage from '../../components/public/StudioImage.jsx'
 import CollectionLightbox from '../../components/public/CollectionLightbox.jsx'
 import StudioIcon from '../../components/public/StudioIcon.jsx'
 import { getCollection } from '../../data/collections.js'
@@ -13,7 +14,7 @@ function Collection({ item, previous, next, choose }) {
   const [openPhoto, setOpenPhoto] = useState(null)
   const cover = collection.images[0]
   const photoButton = (image, index, className) => <button className={`collection-photo ${className || ''}`} onClick={() => setOpenPhoto(index)} aria-label={`Xem ảnh lớn: ${image.caption || item.name} (${index + 1}/${collection.images.length})`} key={image.src}>
-    <img src={image.src} alt={image.alt} loading={index ? 'lazy' : 'eager'} width="1000" height="1250" /><span className="photo-expand" aria-hidden="true"><StudioIcon /> Xem ảnh</span>
+    <StudioImage src={image.src} alt={image.alt} sizes="(max-width: 700px) 88vw, 62vw" loading={index ? 'lazy' : 'eager'} decoding="async" width="1000" height="1250" /><span className="photo-expand" aria-hidden="true"><StudioIcon /> Xem ảnh</span>
   </button>
   return <section className="concept-collection" aria-labelledby="collection-title">
     <div className="collection-navigation"><span>{collection.images.length} khung hình {collection.demo ? 'cảm hứng' : 'trong bộ sưu tập'}</span><div><button className="concept-prev" disabled={!previous} onClick={() => choose(previous.id)} aria-label={`Concept trước${previous ? `: ${previous.name}` : ''}`}><StudioIcon /><span>Concept trước</span></button><button disabled={!next} onClick={() => choose(next.id)} aria-label={`Concept tiếp theo${next ? `: ${next.name}` : ''}`}><span>Concept sau</span><StudioIcon /></button></div></div>

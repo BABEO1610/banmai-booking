@@ -1,4 +1,4 @@
-// Original, anonymous mirrorless-camera study. All textures are generated locally.
+// Sony α7 IV / ILCE-7M4 inspired studio model. All textures are generated locally.
 // Shared materials and instanced knurling keep the detail budget predictable.
 export function buildProfessionalCamera(T, RoundedBoxGeometry, mergeGeometries, mergeVertices, environment) {
   const camera = new T.Group()
@@ -12,7 +12,7 @@ export function buildProfessionalCamera(T, RoundedBoxGeometry, mergeGeometries, 
     paint(canvas.getContext('2d'), width, height)
     const map = new T.CanvasTexture(canvas); textures.push(map); return map
   }
-  const grain = texture(64, 64, (ctx, width, height) => {
+  const grain = texture(128, 128, (ctx, width, height) => {
     const pixels = ctx.createImageData(width, height)
     let seed = 83
     for (let i = 0; i < pixels.data.length; i += 4) {
@@ -64,8 +64,8 @@ export function buildProfessionalCamera(T, RoundedBoxGeometry, mergeGeometries, 
     camera.add(item)
   }
   const label = (text, w, h, x, y, z, back = false, color = '#cbd0d4') => {
-    const map = texture(512, 128, (ctx) => {
-      ctx.fillStyle = color; ctx.font = '500 42px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 256, 64)
+    const map = texture(1024, 256, (ctx) => {
+      ctx.fillStyle = color; ctx.font = '500 84px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, 512, 128)
     })
     map.colorSpace = T.SRGBColorSpace
     const mat = new T.MeshBasicMaterial({ map, transparent: true, depthWrite: false }); materials.push(mat)
@@ -91,9 +91,13 @@ export function buildProfessionalCamera(T, RoundedBoxGeometry, mergeGeometries, 
   box(.07, .06, .43, .01, metal, .02, 1.44, -.17)
   box(.83, .54, .22, .12, rubber, -.23, 1.06, -.67)
   box(.51, .29, .03, .05, optical, -.23, 1.06, -.79)
-  label('BAN MAI', .78, .21, -.18, 1.13, .218)
+  // Sony's front badge and α7 IV model mark make the studio's camera
+  // recognizable even when the visitor only sees the hero-sized render.
+  label('SONY', .68, .17, -.18, 1.16, .218)
+  label('α7 IV', .52, .15, -.18, .96, .218)
+  label('ILCE-7M4', .64, .1, -.18, .79, .218)
 
-  // Stepped mount and 85mm barrel; no pink plastic lens band.
+  // Stepped E-mount and FE 85mm barrel; no pink plastic lens band.
   const lx = -.36, ly = -.06
   cylinder(.84, .1, metal, lx, ly, .51)
   cylinder(.8, .16, black, lx, ly, .61)
@@ -121,7 +125,7 @@ export function buildProfessionalCamera(T, RoundedBoxGeometry, mergeGeometries, 
   // sphere whose reflections make the front element look like a painted disc.
   const frontGlass = mesh(new T.SphereGeometry(1.65, 48, 16, 0, Math.PI * 2, 0, .395), glass, lx, ly, .65)
   frontGlass.rotation.x = Math.PI / 2
-  label('85mm  1:1.8', .7, .12, lx, ly - .63, 2.325)
+  label('FE 85mm  1:1.8', .82, .12, lx, ly - .63, 2.325)
   label('Ø 67', .25, .085, lx, ly + .665, 2.325)
   label('AF / MF', .35, .095, -.9, .42, .54)
   box(.24, .08, .06, .025, black, -.92, .32, .54)
@@ -143,9 +147,24 @@ export function buildProfessionalCamera(T, RoundedBoxGeometry, mergeGeometries, 
   }
   const lampMat = material({ color: 0x29362f, roughness: .3, emissive: 0x000000 })
   const lamp = mesh(new T.CircleGeometry(.032, 16), lampMat, -.98, .71, .443)
+  // A restrained Ban Mai Studio wordmark occasionally travels behind the
+  // camera. Depth testing lets the body and lens naturally occlude the text.
+  const brandMap = texture(2048, 512, (ctx) => {
+    const gradient = ctx.createLinearGradient(320, 0, 1728, 0)
+    gradient.addColorStop(0, '#9b315f'); gradient.addColorStop(.5, '#e789b2'); gradient.addColorStop(1, '#9b315f')
+    ctx.shadowColor = '#f4b7d2'; ctx.shadowBlur = 22
+    ctx.fillStyle = gradient; ctx.font = 'italic 600 116px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText('Ban Mai Studio', 1024, 238)
+    ctx.shadowBlur = 0; ctx.fillStyle = '#e9a7c3'; ctx.fillRect(650, 326, 748, 3)
+  })
+  const brandMaterial = new T.SpriteMaterial({ map: brandMap, transparent: true, opacity: 0, depthTest: true, depthWrite: false })
+  materials.push(brandMaterial)
+  const brandMark = new T.Sprite(brandMaterial)
+  brandMark.position.set(-5.8, .22, -2.8); brandMark.scale.set(7.6, 1.9, 1); brandMark.renderOrder = 0; camera.add(brandMark)
   // Rear LCD and right-hand controls stay credible when visitors change angle.
   box(2.38, 1.54, .08, .08, black, -.33, -.12, -.632)
-  const screenMap = texture(512, 320, (ctx) => {
+  const screenMap = texture(1024, 640, (ctx) => {
+    ctx.scale(2, 2)
     ctx.fillStyle = '#121a20'; ctx.fillRect(0, 0, 512, 320)
     const g = ctx.createLinearGradient(0, 40, 450, 260); g.addColorStop(0, '#263e4c'); g.addColorStop(1, '#171b24')
     ctx.fillStyle = g; ctx.fillRect(12, 36, 488, 242)
@@ -153,7 +172,7 @@ export function buildProfessionalCamera(T, RoundedBoxGeometry, mergeGeometries, 
     for (const x of [175, 337]) { ctx.beginPath(); ctx.moveTo(x, 36); ctx.lineTo(x, 278); ctx.stroke() }
     for (const y of [117, 198]) { ctx.beginPath(); ctx.moveTo(12, y); ctx.lineTo(500, y); ctx.stroke() }
     ctx.strokeStyle = '#c9cdd0'; ctx.strokeRect(222, 122, 68, 68)
-    ctx.fillStyle = '#d8e0e3'; ctx.font = '16px monospace'; ctx.fillText('M   1/250   F1.8   ISO 100', 18, 24); ctx.fillText('RAW    AWB    85mm', 18, 305)
+    ctx.fillStyle = '#d8e0e3'; ctx.font = '16px monospace'; ctx.fillText('α7 IV   1/250   F1.8   ISO 100', 18, 24); ctx.fillText('RAW    AWB    FE 85mm', 18, 305)
   })
   screenMap.colorSpace = T.SRGBColorSpace
   const screenMat = new T.MeshBasicMaterial({ map: screenMap }); materials.push(screenMat)
@@ -207,6 +226,18 @@ export function buildProfessionalCamera(T, RoundedBoxGeometry, mergeGeometries, 
   }
   return {
     camera,
+    updateBrandMark(time) {
+      const phase = time % 15
+      if (phase < 3.5 || phase > 10.5) { brandMaterial.opacity = 0; return }
+      const progress = (phase - 3.5) / 7
+      // Cubic ease-in-out gives the large wordmark a gallery-like glide with
+      // no abrupt start/stop at either edge of the frame.
+      const eased = progress < .5 ? 4 * progress ** 3 : 1 - ((-2 * progress + 2) ** 3) / 2
+      const fade = Math.sin(progress * Math.PI)
+      brandMark.position.x = -5.8 + eased * 11.6
+      brandMark.position.y = .22 + Math.sin(progress * Math.PI) * .1
+      brandMaterial.opacity = fade * .86
+    },
     setLightweight(active) { assignments.forEach(([item, original, simple]) => { item.material = active ? simple : original }) },
     shoot(active) { shutter.position.y = active ? 1.165 : 1.19; lamp.material.emissive.setHex(active ? 0x487a40 : 0x000000) },
     dispose() { instances.forEach((item) => item.dispose()); geometries.forEach((item) => item.dispose()); materials.forEach((item) => item.dispose()); textures.forEach((item) => item.dispose()) },

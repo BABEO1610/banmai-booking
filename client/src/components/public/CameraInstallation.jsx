@@ -12,7 +12,12 @@ export default function CameraInstallation({ paused, reduced, shot }) {
     let disposed = false, contextLost = false
     const container = host.current
     const canvas = document.createElement('canvas')
-    const context = canvas.getContext('webgl2', { alpha: true, antialias: true })
+    const context = canvas.getContext('webgl2', {
+      alpha: true,
+      antialias: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: false,
+    })
     if (!context) { setMode('fallback'); return }
     let teardown = () => {}
     Promise.all([
@@ -21,7 +26,7 @@ export default function CameraInstallation({ paused, reduced, shot }) {
       import('three/addons/utils/BufferGeometryUtils.js'),
     ]).then(([T, { RoundedBoxGeometry }, { RoomEnvironment }, { buildProfessionalCamera }, { mergeGeometries, mergeVertices }]) => {
       if (disposed) { context.getExtension('WEBGL_lose_context')?.loseContext(); return }
-      const renderer = new T.WebGLRenderer({ canvas, context, alpha: true, antialias: true })
+      const renderer = new T.WebGLRenderer({ canvas, context, alpha: true, antialias: true, powerPreference: 'high-performance' })
       let model, environment, observer, shotTimer
       const listeners = []
       // Install cleanup before any GPU allocation that could throw.
@@ -32,9 +37,16 @@ export default function CameraInstallation({ paused, reduced, shot }) {
         model?.dispose(); environment?.dispose()
         renderer.dispose(); renderer.forceContextLoss(); canvas.remove()
       }
-      const baseRatio = Math.min(window.devicePixelRatio, 1.25)
+      const mobile = window.matchMedia('(max-width: 700px)').matches
+      // Keep the product study crisp on high-density mobile screens. The old
+      // 0.9 cap rendered fewer physical pixels than the phone could display.
+      const baseRatio = Math.min(Math.max(window.devicePixelRatio || 1, mobile ? 2 : 1.5), 2.5)
+      // 30fps on mobile keeps the wordmark and camera motion continuous while
+      // leaving enough GPU time for the supersampled frame.
+      const frameInterval = 1000 / (mobile ? 30 : 45)
       let movingRatio = baseRatio, slowFrames = 0, lightweight = false
       const resolution = (ratio) => { renderer.setPixelRatio(ratio); canvas.dataset.pixelRatio = String(ratio) }
+      canvas.dataset.antialias = String(context.getContextAttributes()?.antialias === true)
       resolution(baseRatio)
       renderer.setClearColor(0xffffff, 0)
       renderer.outputColorSpace = T.SRGBColorSpace
@@ -64,6 +76,7 @@ export default function CameraInstallation({ paused, reduced, shot }) {
       const pose = () => {
         installation.rotation.set(.12 + Math.sin(time * .55) * .045 + pointer.y * .1, .43 + Math.sin(time * .4) * .22 + pointer.x * .17 + [0, -1.3, 2.7][angle], -.065 + Math.sin(time * .5) * .025)
         installation.position.y = .18 + Math.sin(time * .82) * .065
+        model.updateBrandMark(time)
       }
       const draw = () => {
         if (disposed || contextLost) return
@@ -71,15 +84,18 @@ export default function CameraInstallation({ paused, reduced, shot }) {
         canvas.dataset.drawCalls = String(renderer.info.render.calls)
       }
       const animate = (now) => {
-        if (previous && now - previous < 1000 / 30 - 1) return
+        if (previous && now - previous < frameInterval - 1) return
         if (previous) {
           const elapsed = now - previous
           time += Math.min(elapsed / 1000, .05) * 1.28
           // Respond to measured load, not browser/GPU fingerprinting. Keep
           // geometric detail; lower only moving pixels when rendering is slow.
           slowFrames = elapsed > 52 ? slowFrames + 1 : Math.max(0, slowFrames - 1)
-          if (slowFrames >= 8 && movingRatio > .7) {
-            movingRatio = Math.max(.7, movingRatio - .2); resolution(movingRatio); slowFrames = 0
+          if (slowFrames >= 8 && movingRatio > 1.25) {
+            // Preserve a sharp physical-pixel baseline; reduce motion detail
+            // only after reaching 1.25x rather than making the whole product
+            // study soft on a small screen.
+            movingRatio = Math.max(1.25, movingRatio - .15); resolution(movingRatio); slowFrames = 0
           } else if (slowFrames >= 8 && !lightweight) {
             lightweight = true; model.setLightweight(true); canvas.dataset.lightweight = 'true'; slowFrames = 0
           }
@@ -90,6 +106,7 @@ export default function CameraInstallation({ paused, reduced, shot }) {
         previous = 0
         slowFrames = 0
         const running = !latest.current.paused && !latest.current.reduced && !contextLost
+        if (!running) { movingRatio = baseRatio; lightweight = false }
         resolution(running ? movingRatio : baseRatio)
         model.setLightweight(running && lightweight); canvas.dataset.lightweight = String(running && lightweight)
         renderer.setAnimationLoop(running ? animate : null)
@@ -129,10 +146,10 @@ export default function CameraInstallation({ paused, reduced, shot }) {
   useEffect(() => { controller.current?.sync() }, [paused, reduced])
   useEffect(() => { if (shot) controller.current?.shoot() }, [shot])
   return <div className={`camera-installation camera-${mode}`} data-mode={mode}>
-    <div ref={host} className="camera-canvas" role="img" aria-label="Mô hình máy ảnh 3D mirrorless minh họa với báng cầm có vân, ống kính nhiều lớp, kính quang học và nút điều khiển trong ánh sáng Studio" />
+    <div ref={host} className="camera-canvas" role="img" aria-label="Mô hình máy ảnh 3D Sony α7 IV (ILCE-7M4) với báng cầm có vân, ống kính nhiều lớp, kính quang học và nút điều khiển trong ánh sáng Studio" />
     {mode !== '3d' && <div className="installation-fallback" aria-hidden="true"><StudioIcon name="camera" /></div>}
     {mode === '3d' && <button className="camera-angle-button" onClick={() => controller.current?.rotate()}><StudioIcon name="aperture" />Đổi góc nhìn</button>}
-    <span className="installation-label">{mode === '3d' ? 'Nghiên cứu ánh sáng · Máy ảnh mirrorless 3D' : mode === 'fallback' ? 'Minh họa Studio · Thiết bị không hỗ trợ 3D' : 'Đang mở không gian 3D…'}</span>
+    <span className="installation-label">{mode === '3d' ? 'Sony α7 IV · Nghiên cứu ánh sáng 3D' : mode === 'fallback' ? 'Minh họa Studio · Thiết bị không hỗ trợ 3D · Sony α7 IV' : 'Đang mở không gian 3D…'}</span>
     {shot > 0 && <span key={shot} className="camera-shutter-glow" aria-hidden="true" />}
   </div>
 }

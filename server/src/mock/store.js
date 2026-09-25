@@ -21,6 +21,11 @@ const clone = (value) => JSON.parse(JSON.stringify(value))
 const normalized = (email) => String(email || '').trim().toLowerCase()
 const publicUser = (user) => ({ id: user.id, email: user.email, role: user.role, status: user.status, emailVerified: user.emailVerified, name: user.name })
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+const defaultHomeContents = () => [
+  { id: 'home-intro', key: 'home_intro', title: 'Một góc nhìn rất riêng về bạn.', body: 'Một chút ánh sáng, một chút tự nhiên. Để mỗi khung hình giữ lại đúng cảm xúc của bạn.', image: '/images/daylight.jpg', published: true, version: 1 },
+  { id: 'home-light-main', key: 'home_light_main', title: 'Nghiên cứu ánh sáng mềm', body: 'Ảnh chính của khu vực nghiên cứu ánh sáng trên trang chủ.', image: '/images/portrait-soft.jpg', published: true, version: 1 },
+  { id: 'home-light-detail', key: 'home_light_detail', title: 'Nghiên cứu màu sắc ngoài trời', body: 'Ảnh phụ của khu vực nghiên cứu ánh sáng trên trang chủ.', image: '/images/color-street.jpg', published: true, version: 1 },
+]
 
 export class DemoStore {
   durableState = new DurableState()
@@ -44,11 +49,11 @@ export class DemoStore {
       for (let attempt = 1; attempt <= 3; attempt += 1) {
         try { result = await this.pool.query('select state, updated_at::text as revision from app.demo_state where id = 1'); break } catch (error) { if (attempt === 3) throw error; await wait(attempt * 1000) }
       }
-      if (result.rows[0]?.state) { this.revision = result.rows[0].revision; this.state = { ...this.state, ...result.rows[0].state }; this.normalizePortfolioState(); return }
+      if (result.rows[0]?.state) { this.revision = result.rows[0].revision; this.state = { ...this.state, ...result.rows[0].state }; this.normalizePortfolioState(); if (this.ensureHomeContents()) await this.persist(); return }
       await this.seed()
       return
     }
-    try { this.state = { ...this.state, ...JSON.parse(await fs.promises.readFile(dataFile, 'utf8')) } } catch { await this.seed() }
+    try { this.state = { ...this.state, ...JSON.parse(await fs.promises.readFile(dataFile, 'utf8')) }; if (this.ensureHomeContents()) await this.persist() } catch { await this.seed() }
     if (!this.state.settings && process.env.NODE_ENV === 'test') this.state.settings = { maxConcurrentBookings: 2, bufferBeforeMinutes: 0, bufferAfterMinutes: 0, timezone: config.timezone, version: 1, updatedAt: now() }
     this.normalizePortfolioState()
   }
@@ -120,10 +125,16 @@ export class DemoStore {
       { id: 'color', name: 'Sắc riêng', description: 'Tự tin là chính mình', image: '/images/portrait.jpg', visible: true, published: true, featured: false },
       { id: 'together', name: 'Chung đôi', description: 'Cùng nhau giữ một khoảnh khắc', image: '/images/together.jpg', visible: true, published: true, featured: true },
     ]
-    this.state.contents = [{ id: 'home-intro', key: 'home_intro', title: 'Một góc nhìn rất riêng về bạn.', body: 'Một chút ánh sáng, một chút tự nhiên. Để mỗi khung hình giữ lại đúng cảm xúc của bạn.', image: '/images/daylight.jpg', published: true, version: 1 }]
+    this.state.contents = defaultHomeContents()
     this.state.policies = [{ id: 'policy-demo', key: 'booking', title: 'Chính sách đang chờ công bố', body: 'Các mốc hủy, hoàn cọc và dời lịch sẽ hiển thị sau khi Studio xác nhận chính sách.', published: true, version: 1 }]
     this.state.settings = null
     await this.persist()
+  }
+  ensureHomeContents() {
+    const existing = new Set((this.state.contents || []).map((item) => item.key))
+    const missing = defaultHomeContents().filter((item) => !existing.has(item.key))
+    if (missing.length) this.state.contents = [...(this.state.contents || []), ...missing]
+    return missing.length > 0
   }
 
   normalizePortfolioState() {
