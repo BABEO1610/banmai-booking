@@ -42,8 +42,10 @@ export class DemoStore {
   }
 
   async load() {
-    await fs.promises.mkdir(dataDir, { recursive: true })
-    await fs.promises.mkdir(mediaDir, { recursive: true })
+    if (!this.pool) {
+      await fs.promises.mkdir(dataDir, { recursive: true })
+      if (config.imageStorage === 'local') await fs.promises.mkdir(mediaDir, { recursive: true })
+    }
     if (this.pool) {
       let result
       for (let attempt = 1; attempt <= 3; attempt += 1) {
