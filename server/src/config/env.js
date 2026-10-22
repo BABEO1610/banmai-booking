@@ -54,6 +54,7 @@ export const config = {
   databaseUrl: process.env.DATABASE_URL,
   migrationDatabaseUrl: process.env.MIGRATION_DATABASE_URL,
   testDatabaseUrl: process.env.TEST_DATABASE_URL,
+  databaseSslCa: process.env.DATABASE_SSL_CA,
   databaseSslCaPath: process.env.DATABASE_SSL_CA_PATH ? path.resolve(process.env.DATABASE_SSL_CA_PATH) : undefined,
   trustProxy: bool(process.env.TRUST_PROXY),
 }

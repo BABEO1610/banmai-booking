@@ -4,7 +4,8 @@ import { config } from '../config/env.js'
 const { Pool } = pg
 export function createPool() {
   if (config.dataMode !== 'postgres') return null
-  const ssl = config.databaseSslCaPath ? { ca: fs.readFileSync(config.databaseSslCaPath, 'utf8'), rejectUnauthorized: true } : undefined
+  const ca = config.databaseSslCa || (config.databaseSslCaPath ? fs.readFileSync(config.databaseSslCaPath, 'utf8') : undefined)
+  const ssl = ca ? { ca, rejectUnauthorized: true } : undefined
   // When ssl is provided separately, strip sslrootcert from the connection string
   // to prevent pg-connection-string from trying to read a host-machine path (e.g. Windows).
   let connectionString = config.databaseUrl
