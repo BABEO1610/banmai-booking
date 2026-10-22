@@ -4,6 +4,7 @@ import PublicLayout from '../../components/public/PublicLayout.jsx'
 import StudioHero from '../../components/public/StudioHero.jsx'
 import StudioImage from '../../components/public/StudioImage.jsx'
 import StudioIcon from '../../components/public/StudioIcon.jsx'
+import { apiUrl } from '../../services/api.js'
 
 // Landing intentionally does not import catalog hooks, gallery or pricing components.
 export default function HomePage() {
@@ -11,7 +12,7 @@ export default function HomePage() {
   const [lightStudyImages, setLightStudyImages] = useState({ main: '/images/portrait-soft.jpg', detail: '/images/color-street.jpg' })
   useEffect(() => {
     let disposed = false
-    fetch('/api/v1/contents', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => {
+    fetch(apiUrl('/api/v1/contents'), { cache: 'no-store', credentials: 'include' }).then((response) => response.ok ? response.json() : null).then((payload) => {
       if (disposed) return
       const contents = payload?.data || []
       const main = contents.find((item) => item.key === 'home_light_main')?.image

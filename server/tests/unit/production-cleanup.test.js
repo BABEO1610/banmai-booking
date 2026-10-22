@@ -4,11 +4,23 @@ import { DurableState } from '../../src/db/durable-state.js'
 import { processOutboxBatch } from '../../src/jobs/process-outbox.job.js'
 import { paginate } from '../../src/utils/pagination.js'
 
-function fixture() {
+function fixture(assignmentId = 'assignment') {
   const durable = new DurableState()
-  durable.value = { bookings: [{ id: 'booking', assignmentId: 'assignment', status: 'CONFIRMED', version: 1 }], outbox: [{ id: 'event', bookingId: 'booking', channel: 'sheets', status: 'PENDING', attempts: 0 }] }
+  durable.value = { bookings: [{ id: 'booking', assignmentId, status: 'CONFIRMED', version: 1 }], outbox: [{ id: 'event', bookingId: 'booking', channel: 'sheets', status: 'PENDING', attempts: 0 }] }
   return { get state() { return durable.value }, mutate: fn => durable.run(fn, { persist: async () => {} }), sheetRowForBooking: () => ({ bookingId: 'booking', version: 1 }) }
 }
+
+test('confirmed booking is synced before photographer assignment', async () => {
+  const store = fixture(null)
+  const delivered = await processOutboxBatch(store, async events => {
+    assert.equal(events[0].row.bookingId, 'booking')
+    events[0].status = 'DELIVERED'
+    events[0].attempts++
+    return [{ eventId: events[0].id }]
+  })
+  assert.deepEqual(delivered, [{ eventId: 'event' }])
+  assert.equal(store.state.outbox[0].status, 'DELIVERED')
+})
 
 test('slow Sheets delivery does not block booking mutations or duplicate an active claim', async () => {
   const store = fixture()

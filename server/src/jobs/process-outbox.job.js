@@ -12,7 +12,7 @@ export async function processOutboxBatch(store, deliver, { now = Date.now, batch
     const claimed = []
     for (const event of store.state.outbox.filter(due).slice(0, batchSize)) {
       const booking = store.state.bookings.find(item => item.id === event.bookingId)
-      if (!booking?.assignmentId || !['CONFIRMED', 'COMPLETED'].includes(booking.status)) { event.status = 'SKIPPED'; continue }
+      if (!booking || !['CONFIRMED', 'COMPLETED'].includes(booking.status)) { event.status = 'SKIPPED'; continue }
       event.channel = 'sheets'
       event.status = 'PROCESSING'
       event.claimId = crypto.randomUUID()

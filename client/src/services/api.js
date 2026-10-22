@@ -1,13 +1,18 @@
+export const apiUrl = (path) => {
+  const base = (globalThis.BANMAI_API_BASE_URL || '').replace(/\/$/, '')
+  return `${base}${path}`
+}
+
 const request = async (path, options = {}) => {
   const headers = { ...(options.headers || {}) }
   if (!(options.body instanceof FormData) && !headers['Content-Type']) headers['Content-Type'] = 'application/json'
-  const response = await fetch(`/api/v1${path}`, { credentials: 'include', signal: AbortSignal.timeout(30000), ...options, headers })
+  const response = await fetch(apiUrl(`/api/v1${path}`), { credentials: 'include', signal: AbortSignal.timeout(30000), ...options, headers })
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) { const error = new Error(payload.error?.message || 'Không thể hoàn tất yêu cầu'); error.code = payload.error?.code; error.status = response.status; throw error }
   return payload.data
 }
 const api = {
-  request, getHealth: () => fetch('/api/health', { credentials: 'include' }).then((r) => r.json()), me: () => request('/auth/me'), csrf: () => request('/csrf'),
+  request, getHealth: () => fetch(apiUrl('/api/health'), { credentials: 'include' }).then((r) => r.json()), me: () => request('/auth/me'), csrf: () => request('/csrf'),
   login: (body) => request('/auth/login', { method: 'POST', body: JSON.stringify(body) }), register: (body) => request('/auth/register', { method: 'POST', body: JSON.stringify(body) }), verify: (body) => request('/auth/email/verify', { method: 'POST', body: JSON.stringify(body) }), resend: (body) => request('/auth/email/resend', { method: 'POST', body: JSON.stringify(body) }), activate: (body) => request('/auth/account/activate', { method: 'POST', body: JSON.stringify(body) }), logout: (csrf) => request('/auth/logout', { method: 'POST', headers: { 'x-csrf-token': csrf } }),
   resetRequest: (email) => request('/auth/password/reset-request', { method: 'POST', body: JSON.stringify({ email }) }), reset: (body) => request('/auth/password/reset', { method: 'POST', body: JSON.stringify(body) }),
   catalog: () => Promise.all(['/packages', '/addons', '/portfolio', '/contents', '/policies'].map((path) => request(path))).then(([packages, addons, portfolio, contents, policies]) => ({ packages, addons, portfolio, contents, policies })), availability: (params) => request(`/availability?${new URLSearchParams(params)}`), createBooking: (body, csrf, key) => request('/bookings', { method: 'POST', headers: { 'x-csrf-token': csrf, 'idempotency-key': key }, body: JSON.stringify(body) }), bookings: (page = 1) => request(`/bookings?page=${page}`), booking: (id) => request(`/bookings/${id}`), payment: (id, options) => request(`/bookings/${id}/payment`, options),
