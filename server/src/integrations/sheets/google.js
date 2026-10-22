@@ -8,19 +8,23 @@ export const SHEET_HEADERS = [
   'Photographer', 'Tiền công', 'Ghi chú', 'Cập nhật lúc',
 ]
 
-const configured = () => config.sheetsMode === 'google' && Boolean(config.sheetsSpreadsheetId && config.sheetsCredentialsPath)
+const hasInlineCredentials = () => Boolean(config.sheetsCredentialsJson?.client_email && config.sheetsCredentialsJson?.private_key)
+const configured = () => config.sheetsMode === 'google' && Boolean(config.sheetsSpreadsheetId && (hasInlineCredentials() || config.sheetsCredentialsPath))
 
 function credentialsReady() {
-  return configured() && fs.existsSync(config.sheetsCredentialsPath)
+  return configured() && (hasInlineCredentials() || fs.existsSync(config.sheetsCredentialsPath))
 }
 
 let clientPromise
 async function sheetsClient() {
-  if (!credentialsReady()) throw new Error('Google Sheets chưa được cấu hình: kiểm tra SHEETS_MODE, SHEETS_SPREADSHEET_ID và GOOGLE_APPLICATION_CREDENTIALS')
+  if (!credentialsReady()) throw new Error('Google Sheets chưa được cấu hình: kiểm tra SHEETS_MODE, SHEETS_SPREADSHEET_ID và GOOGLE_SERVICE_ACCOUNT_JSON hoặc GOOGLE_APPLICATION_CREDENTIALS')
   clientPromise ||= (async () => {
     const { google } = await import('googleapis')
     google.options({ timeout: 10000, retry: false })
-    const auth = new google.auth.GoogleAuth({ keyFile: config.sheetsCredentialsPath, scopes: ['https://www.googleapis.com/auth/spreadsheets'] })
+    const authOptions = { scopes: ['https://www.googleapis.com/auth/spreadsheets'] }
+    if (hasInlineCredentials()) authOptions.credentials = config.sheetsCredentialsJson
+    else authOptions.keyFile = config.sheetsCredentialsPath
+    const auth = new google.auth.GoogleAuth(authOptions)
     return google.sheets({ version: 'v4', auth: await auth.getClient() })
   })()
   return clientPromise

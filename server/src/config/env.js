@@ -38,6 +38,9 @@ export const config = {
   sheetsSpreadsheetId: process.env.SHEETS_SPREADSHEET_ID,
   sheetsTab: process.env.SHEETS_TAB || 'Bookings',
   sheetsCredentialsPath: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  sheetsCredentialsJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON
+    ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON)
+    : undefined,
   sheetsSyncIntervalMs: Number(process.env.SHEETS_SYNC_INTERVAL_MS) || 5000,
   pgPoolMax: Number(process.env.PG_POOL_MAX) || 4,
   pgConnectionTimeoutMs: Number(process.env.PG_CONNECTION_TIMEOUT_MS) || 15000,
@@ -60,7 +63,10 @@ export function validateConfig({ mode = config.nodeEnv } = {}) {
   if (mode === 'production') {
     if (config.dataMode !== 'postgres' || config.emailMode !== 'smtp' || config.paymentMode !== 'sepay' || !['google', 'disabled'].includes(config.sheetsMode) || config.smsMode !== 'disabled') throw new Error('Production yêu cầu postgres, smtp, sepay; Sheets google/disabled; SMS disabled')
     if (config.workerMode !== 'in-process') throw new Error('Snapshot store yêu cầu WORKER_MODE=in-process; không chạy worker riêng')
-    if (config.sheetsMode === 'google' && (!config.sheetsSpreadsheetId || !config.sheetsCredentialsPath || !fs.existsSync(config.sheetsCredentialsPath))) throw new Error('Google Sheets production thiếu spreadsheet hoặc file credentials')
+    const hasSheetsCredentials = Boolean(
+      config.sheetsCredentialsJson?.client_email && config.sheetsCredentialsJson?.private_key,
+    ) || Boolean(config.sheetsCredentialsPath && fs.existsSync(config.sheetsCredentialsPath))
+    if (config.sheetsMode === 'google' && (!config.sheetsSpreadsheetId || !hasSheetsCredentials)) throw new Error('Google Sheets production thiếu spreadsheet hoặc credentials (GOOGLE_SERVICE_ACCOUNT_JSON hoặc GOOGLE_APPLICATION_CREDENTIALS)')
     if (!config.publicOrigin.startsWith('https://')) throw new Error('PUBLIC_ORIGIN production phải dùng HTTPS')
     if (!config.sepayApiKey || !config.sepayBankAccount || !config.sepayAccountHolder) throw new Error('Thiếu cấu hình SePay production')
     if (config.dataMode === 'mock' || config.paymentMode === 'mock' || config.smsMode === 'mock' || config.sheetsMode === 'mock') throw new Error('Production không được bật mock controls')
