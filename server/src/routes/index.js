@@ -22,7 +22,9 @@ import { uploadPublicImage, detectImageExtension } from '../services/storage/pub
 const router = Router()
 const searchLocation = createLocationSearch({ endpoint: process.env.NOMINATIM_SEARCH_URL || undefined, userAgent: process.env.MAPS_USER_AGENT || 'BanMaiStudioBooking/1.0' })
 const mediaDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.data/media')
-fs.mkdirSync(mediaDir, { recursive: true })
+// Vercel's deployment filesystem is read-only. Supabase Storage is the durable
+// production backend, so only create the local media directory in local mode.
+if (config.imageStorage === 'local') fs.mkdirSync(mediaDir, { recursive: true })
 router.use('/v1/admin/catalog/packages', createPackageImageRouter(mediaDir))
 const upload = multer({ storage: multer.memoryStorage(), limits: { files: 1, fileSize: 10 * 1024 * 1024, fields: 1, fieldSize: 1024, parts: 2 }, fileFilter: (_req, _file, callback) => callback(null, true) })
 const uploadImages = (request, response, next) => upload.array('images', 1)(request, response, (error) => error ? next(error.code?.startsWith('LIMIT_') ? new AppError(400, 'INVALID_IMAGE', 'Mỗi lần tải một ảnh, tối đa 10MB') : error) : next())
