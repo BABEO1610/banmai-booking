@@ -10,3 +10,7 @@ import { demoStore } from './mock/store.js'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 export function createApp() { const app = express(); const pool = demoStore.pool; app.locals.pool = pool; app.locals.authService = authService; app.set('trust proxy', config.trustProxy); app.use(helmet({ contentSecurityPolicy: false })); app.use(cors({ origin: config.publicOrigin, credentials: true })); app.use(express.json({ limit: '1mb' })); app.use('/media', express.static(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.data/media'), { maxAge: '1d', fallthrough: false })); app.use(sessionMiddleware(pool)); app.use('/api', apiRoutes); app.use(notFound); app.use(errorHandler); return { app, pool } }
+
+const { app } = createApp()
+await demoStore.ready
+export default app
