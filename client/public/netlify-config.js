@@ -1,3 +1,3 @@
-// Set this to the public HTTPS URL of the Express API before deploying.
-// Example: window.BANMAI_API_BASE_URL = 'https://api.example.com'
-window.BANMAI_API_BASE_URL = 'https://banmai-booking-aez2.vercel.app'
+// Để trống để client gọi /api/* trực tiếp trên cùng domain.
+// Vercel rewrites (vercel.json) sẽ forward sang API server.
+window.BANMAI_API_BASE_URL = ''
